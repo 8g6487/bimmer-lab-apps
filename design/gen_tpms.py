@@ -128,8 +128,8 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     stop_l = round(car_x - out - clear)           # stop outside the tyres, and with the photo's gap
     stop_r = round(car_x + car_w + out + clear)
 
-    v_top = r1 + round(0.10 * hcell)                       # the first row's ink top
-    v_bottom = r1 + rows[3] + round(0.75 * hcell)          # the last row's ink bottom, a touch short
+    v_top = r1 + round(0.04 * d)   # first row's ink top                       # the first row's ink top
+    v_bottom = r1 + rows[3] + round(0.95 * d)   # last row's ink bottom          # the last row's ink bottom, a touch short
 
     widgets = [
         # BMW's cluster is behind a dark panel here: the theme draws over its gauges, not on top of them
