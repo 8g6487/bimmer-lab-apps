@@ -123,14 +123,18 @@ def main():
               'x': ink_l, 'y': rule_y, 'w': stop_l - ink_l, 'h': 2, 'color': LINE})
     w.append({'id': 'tp-rules-h-right', 'type': 'fill', 'z': 2,
               'x': stop_r, 'y': rule_y, 'w': ink_r - stop_r, 'h': 2, 'color': LINE})
-    vtop_y = head_top + head_h + 2
+    # the vertical rules end on the readings themselves: from the first row's top to the last row's bottom,
+    # never above the "2.3" nor below the "27"
+    ink_top = pair_top['FL']
+    ink_bot = pair_top['RL'] + pair_lead + d_cell
+    vtop_y = ink_top
     w.append({'id': 'tp-rules-v-top', 'type': 'fill', 'z': 2,
               'x': axis, 'y': vtop_y, 'w': 2,
               'h': max(2, (car_top - 4) - vtop_y), 'color': LINE})
-    vbot_y = car_top + car_len + 4                     # the foot starts under the car, not at the last pair
+    vbot_y = car_top + car_len + 4
     w.append({'id': 'tp-rules-v-bottom', 'type': 'fill', 'z': 2,
               'x': axis, 'y': vbot_y, 'w': 2,
-              'h': max(2, (top + block_h - 3) - vbot_y), 'color': LINE})
+              'h': max(2, ink_bot - vbot_y), 'color': LINE})
     w.append({'id': 'tp-car', 'type': 'sprite', 'name': 'car-photo', 'z': 3,
               'x': car_x, 'y': car_top, 'w': car_w, 'h': car_len})
 
