@@ -74,7 +74,7 @@ def main():
     # pair_h + pair_gap.
     # The car must stay near the size it is in the TPMS theme (53x101) — it is a 46x89 photo sprite, so
     # anything much larger smears. 1.19x still keeps the two axles far enough apart for the pairs.
-    car_len = 120
+    car_len = 100
     car_w = max(8, round(car_len * 53 / 101))
     block_w = 2 * col_w + 2 * gap + car_w
     block_h = head_h + head_gap + car_len
@@ -86,15 +86,19 @@ def main():
     car_top = top + head_h + head_gap
     r1 = car_top
     axle_box = {'FL': 0.182, 'FR': 0.182, 'RL': 0.682, 'RR': 0.682}
-    box_x, box_w = 0.0, 0.261                     # where car-photo paints a tyre, as a fraction of the body
-    box_y, box_h = 0.182, 0.239
+    # Where car-photo itself paints the tyres (`tyres` in sprites/car-photo.json): the left pair starts at
+    # the very edge (0.0) while the right pair starts at 0.7174, and the two patches are not the same width.
+    # The capsule is centred *inside* its patch, otherwise it sits on the patch's outer edge and the whole
+    # car reads as if the wheels had slid left.
+    patch = {'FL': (0.0, 0.3043), 'FR': (0.7174, 0.2826), 'RL': (0.0, 0.3043), 'RR': (0.7174, 0.2826)}
+    box_y, box_h = 0.1591, 0.2841
     # The car sprite paints its own tyres; our capsules must sit inside those patches, so they are
     # sized from the patch and inset, not from the whole body.
-    tyre_w = max(5, round(0.62 * box_w * car_w))
+    tyre_w = max(5, round(0.62 * patch['FL'][1] * car_w))
     tyre_h = max(8, round(0.86 * box_h * car_len))
     axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
     pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
-    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2) - 2   # sit in the whitespace between the two rows
+    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2) + 3   # sit in the whitespace between the two rows
     ink_l = left                                   # the reference's rule runs the block's width, between the
     ink_r = left + block_w                         # two pairs' rows
     col_l = left + col_w
@@ -137,10 +141,11 @@ def main():
               'h': unit['cellHeight'],
               'text': '{{u:temp}}', 'font': UNIT, 'align': 'left', 'color': HEAD})
 
-    for corner, bx, by in (('FL', box_x, box_y), ('FR', 1 - box_x - box_w, box_y),
-                           ('RL', box_x, 0.682), ('RR', 1 - box_x - box_w, 0.682)):
+    for corner, bx, by in (('FL', patch['FL'][0], box_y), ('FR', patch['FR'][0], box_y),
+                           ('RL', patch['RL'][0], 0.6591), ('RR', patch['RR'][0], 0.6591)):
         w.append({'id': 'tp-tyre-' + corner.lower(), 'type': 'sprite', 'name': 'tyre', 'z': 5,
-                  'x': round(car_x + bx * car_w), 'y': round(car_top + by * car_len),
+                  'x': round(car_x + bx * car_w + (patch[corner][1] * car_w - tyre_w) / 2),
+                  'y': round(car_top + by * car_len),
                   'w': tyre_w, 'h': tyre_h, 'grade': 'tyre', 'corner': corner})
 
     axle_box = {'FL': box_y, 'FR': box_y, 'RL': 0.682, 'RR': 0.682}
