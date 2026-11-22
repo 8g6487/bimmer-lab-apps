@@ -36,6 +36,9 @@ const RAIL = { x: 16, y: 54, w: 252, h: 66, gap: 8 };
 const RAIL7 = { x: 16, y: 54, w: 252, h: 58, gap: 6 };     // seven tabs or more: a little shorter, so they fit
 const CX = 300, CR = 1584, CW = CR - CX;
 const MODES = [['inComfort', 'Comfort'], ['inSport', 'Sport'], ['inEco', 'Eco Pro']];
+// a plug-in hybrid's own (Cluster Themes; shown once the car has sent a plug-in hybrid mode, or one is set)
+const PHEV_MODES = [['inHybrid', 'Hybrid'], ['inElectric', 'Electric']];
+const PHEV_KEY = { hybrid: 'inHybrid', electric: 'inElectric' };
 const MODE_KEY = { comfort: 'inComfort', sport: 'inSport', eco: 'inEco' };
 const TAB = {
     look: { icon: 'screen' },
@@ -84,7 +87,17 @@ class Page {
         return o ? o[1] : String(v);
     }
     /** a layout's short name: "Off (BMW's own cluster)" -> "BMW's own" */
-    layoutName(v) { return v === 'off' ? "BMW's own" : this.optLabel('hudLayout', v); }
+    layoutName(v) { return v === 'off' ? "BMW's own" : v === 'same' ? 'Same' : this.optLabel('hudLayout', v); }
+    /** The drive mode cells: Comfort, Sport, Eco Pro, and Hybrid / Electric on a plug-in hybrid (Cluster Themes). */
+    modes() {
+        const phev = this.item('inHybrid') && (this.hud.phevSeen || this.get('inHybrid') !== 'same' || this.get('inElectric') !== 'same');
+        return phev ? MODES.concat(PHEV_MODES) : MODES;
+    }
+    /** The key of the cell the car is in now: Hybrid / Electric when that has its own theme, else the drive mode's. */
+    nowKey() {
+        const pk = PHEV_KEY[this.hud.drivePhev];
+        return pk && this.item(pk) && this.get(pk) !== 'same' ? pk : MODE_KEY[this.hud.driveMode];
+    }
     valueText(k) {
         const s = this.item(k), v = this.get(k);
         if (!s) return '';
@@ -130,8 +143,8 @@ class Page {
 
     /** the key a tap on a theme sets: the drive mode's own while it changes with the drive mode */
     lookKey() {
-        const m = this.hud.driveMode;
-        return this.get('byMode') === true && MODE_KEY[m] ? MODE_KEY[m] : 'hudLayout';
+        const k = this.nowKey();
+        return this.get('byMode') === true && k ? k : 'hudLayout';
     }
 
     /* ---------- drawing ---------- */
@@ -236,8 +249,9 @@ class Page {
         cv.text(this.yieldNote() || this.tag(shown), rx, py + 58, 17, this.yieldNote() ? '#e0a340' : C.dim, { literal: true });
         const y = this.toggleRow(cv, rx, py + 72, rw, 'Change with the drive mode', 'byMode', 46);
         if (this.get('byMode') === true) {
-            const now = MODE_KEY[this.hud.driveMode], cw = (rw - 24) / 3;
-            MODES.forEach((m, i) => this.modeCell(cv, rx + i * (cw + 12), y, cw, m[1] + (m[0] === now ? '  ·  now' : ''), m[0]));
+            // five cells on a plug-in hybrid: narrower, the one the car is in lit instead of "· now"
+            const now = this.nowKey(), modes = this.modes(), cw = (rw - 12 * (modes.length - 1)) / modes.length, five = modes.length > 3;
+            modes.forEach((m, i) => this.modeCell(cv, rx + i * (cw + 12), y, cw, m[1] + (m[0] === now && !five ? '  ·  now' : ''), m[0], five && m[0] === now));
         } else this.pickRow(cv, rx, y, rw, 'Theme', 'hudLayout', (v) => this.layoutName(v), 52);
         // the gallery, two rows: a tap shows that theme (in the drive mode the car is in, when it changes with it)
         const looks = this.looks(), cols = Math.max(5, Math.ceil(looks.length / 2)), gap = 12, gy = py + ph + 16;
@@ -254,11 +268,14 @@ class Page {
     }
 
     /** A drive mode's theme as a small two-line cell (name over value), a tap opens the list. */
-    modeCell(cv, x, y, w, name, key) {
+    modeCell(cv, x, y, w, name, key, lit) {
         const h = 52;
-        glass(cv, x, y, w, h, false);
+        glass(cv, x, y, w, h, !!lit);
         cv.text(name, x + 14, y + 20, 14, C.dim, { literal: true });
-        cv.text(this.layoutName(this.get(key)), x + 14, y + 42, 18, C.blueHi, { font: 'bold', literal: true });
+        // cut to the cell (a narrow one on a plug-in hybrid), leaving room for the chevron
+        let v = this.layoutName(this.get(key));
+        if (cv.textWidth) while (v.length > 3 && cv.textWidth(v, 18, { font: 'bold', literal: true }) > w - 40) v = v.slice(0, -2) + '…';
+        cv.text(v, x + 14, y + 42, 18, C.blueHi, { font: 'bold', literal: true });
         chevron(cv, x + w - 18, y + h / 2, C.dim);
         cv.target(x, y, w, h, () => { this.picker = { key, title: name, fmt: (v) => this.layoutName(v) }; this.kick(); }, 'set:' + key, 14);
     }
@@ -604,16 +621,18 @@ class Page {
     settingsTab(cv, bottom) {
         label(cv, CX, 70, 'Settings');
         const keys = this.cfg.settings.filter((k) => this.item(k));
-        const colW = (CW - 24) / 2, per = Math.ceil(keys.length / 2);
+        const colW = (CW - 24) / 2, half = Math.ceil(keys.length / 2);
         // issue #8: the drive mode check (raw signal values, only the signals this app listens to: cfg.modeCheck)
         // under the right column while "Change with the drive mode" is on
         const diag = this.hud.modeDiagLines ? this.hud.modeDiagLines(this.cfg.modeCheck || []) : [];
         // the page's room depends on the screen (bottom 512 without extra room below it): compact rows (46 high,
         // 52 apart) when the full ones, the drive mode check and the status line don't all fit, tight ones (40, 46)
-        // when even those don't (Cluster Themes' 14 rows with the check on)
-        const fits = (h, pitch) => 84 + (per - 1) * pitch + h <= bottom - 24 &&
+        // when even those don't, and last one more row on the left with the rows 44 apart, so the check has room
+        // under the right column (Cluster Themes' 16 rows with the check on)
+        const fits = (h, pitch, per) => 84 + (per - 1) * pitch + h <= bottom - 24 &&
             84 + (keys.length - per) * pitch + 10 + 20 * diag.length <= bottom - 24;
-        const [h, pitch] = fits(56, 64) ? [56, 64] : fits(46, 52) ? [46, 52] : [40, 46];
+        const tiers = [[56, 64, half], [46, 52, half], [40, 46, half], [40, 44, half + 1]];
+        const [h, pitch, per] = tiers.find((t) => fits(t[0], t[1], t[2])) || tiers[tiers.length - 1];
         keys.forEach((k, i) => {
             const x = CX + (i < per ? 0 : colW + 24), y = 84 + (i % per) * pitch;
             if (y + h > bottom) return;
@@ -724,7 +743,7 @@ class Page {
 }
 
 /* ---------- small pieces ---------- */
-const LOOK_KEYS = ['hudLayout', 'inComfort', 'inSport', 'inEco'];
+const LOOK_KEYS = ['hudLayout', 'inComfort', 'inSport', 'inEco', 'inHybrid', 'inElectric'];
 const WARN_KEYS = ['warnOil', 'warnCoolant', 'warnBoost'];
 /** A warning limit as the page shows it, in the display units: "266 °F", "1.2 bar", "Off". */
 function warnText(k, v, us) {

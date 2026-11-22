@@ -118,7 +118,7 @@ While a route runs, the next turn shows in a corner of the layout: an arrow, its
 
 ## Settings
 
-Layout, drive mode switching, which sensor each readout shows, where the HUD sits on the glass and its size, theme, daytime theme for Auto, units (mph, °F, psi or km/h, °C, bar), 12- or 24-hour clock, time zone, fuel tank size, redline, shift point before redline, cold-engine rev guard, which readouts show (clock, oil, coolant, boost), and demo data. Changes show on the HUD right away, and the HUD keeps running after you leave the page.
+Layout, drive mode switching, which sensor each readout shows, where the HUD sits on the glass and its size, theme, daytime theme for Auto, units (mph, °F, psi or km/h, °C, bar), 12- or 24-hour clock, time zone, fuel tank size, redline, shift point before redline, cold-engine rev guard, which readouts show (clock, oil, coolant, boost), whether it starts with the car, and demo data. Changes show on the HUD right away, and the HUD keeps running after you leave the page.
 
 **Time zone (clock):** the head unit's clock runs on UTC, so pick your zone once. Named zones (US Eastern, Central, Mountain, Pacific, Alaska, Hawaii, Arizona, Canada Atlantic, Mexico, UK / Ireland / Portugal, Central Europe, Eastern Europe) change for daylight saving by themselves; for anywhere else, pick your offset from UTC. The Auto theme uses the same zone to work out sunset.
 

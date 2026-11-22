@@ -29,6 +29,8 @@ function startHud(ctx) {
 
 mgu.run({
     background(bg) {
+        // "Start with the car" off: nothing drawn until the app is opened (start() then starts the engine)
+        if (bg.settings.get('autoStart') === false) { bg.log.info('Start with the car is off: waiting to be opened'); return null; }
         return startHud(bg);
     },
     start(ctx) {
@@ -38,7 +40,7 @@ mgu.run({
             title: ctx.spec.title, what: 'cluster',
             look: { name: 'Themes', style: 'hero', tags: { gt3: 'race dash', m: 'M8 style', mview: 'M3 / M5 look', vector: 'music panel', sport: 'Live Cockpit', minimal: 'just the speed', track: 'tyres + temps', drag: '0-60 timer', rally: 'rev arc · G-meter', retro80s: '80s digital', cruise: 'calm · trip', dyno: 'safety tiles', ribbon: 'calm · holidays' } },
             tabs: ['look', 'readouts', 'badge', 'map', 'alerts', 'gmeter', 'settings'],
-            settings: ['units', 'tempUnits', 'pressureUnits', 'clock', 'timeZone', 'tankLitres', 'redline', 'shiftBefore', 'coldGuard', 'showBoost', 'nightDim', 'cameraNotch', 'keepStrip', 'holiday', 'demo'],
+            settings: ['units', 'tempUnits', 'pressureUnits', 'clock', 'timeZone', 'tankLitres', 'redline', 'shiftBefore', 'coldGuard', 'showBoost', 'nightDim', 'cameraNotch', 'keepStrip', 'autoStart', 'holiday', 'demo'],
             // the drive mode check's candidates this app's app.json listens to (issue #8; shared/hud.js modeDiagLines)
             modeCheck: ['HMI', 'MDrive', 'Engine', 'Sport2'],
         }).start();
