@@ -75,17 +75,19 @@ def main():
     # pair_h + pair_gap.
     # The car must stay near the size it is in the TPMS theme (53x101) — it is a 46x89 photo sprite, so
     # anything much larger smears. 1.19x still keeps the two axles far enough apart for the pairs.
-    car_len = 84
+    car_len = 42
     car_w = max(8, round(car_len * 53 / 101))
     block_w = 2 * col_w + 2 * gap + car_w
     tail = round(0.58 * p)                     # room under the car for the bottom of the cross
-    block_h = head_h + head_gap + car_len + tail
+    air = round(0.55 * d_cell)                 # gap between a pair and the cross
+    content_h = max(car_len, 2 * (air + pair_h))   # the pairs, not the car, decide the height
+    block_h = head_h + head_gap + content_h + tail
 
     left = x + (bw - block_w) // 2
     top = y + (bh - block_h) // 2
     cx = left + block_w // 2
     car_x = cx - car_w // 2
-    car_top = top + head_h + head_gap
+    car_top = top + head_h + head_gap + (content_h - car_len) // 2
     r1 = car_top
     axle_box = {'FL': 0.182, 'FR': 0.182, 'RL': 0.682, 'RR': 0.682}
     # Where car-photo itself paints the tyres (`tyres` in sprites/car-photo.json): the left pair starts at
@@ -98,17 +100,20 @@ def main():
     # sized from the patch and inset, not from the whole body.
     tyre_w = max(5, round(0.62 * patch['FL'][1] * car_w))
     tyre_h = max(8, round(0.86 * box_h * car_len))
-    axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
-    pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
-    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2)      # the whitespace between the two rows' pairs
+    rule_y = car_top + car_len // 2                        # the cross sits on the car's centre line
+    # The pairs hang off the rule, not off the axles: each corner's two readings stay a fixed distance from
+    # the cross, so shrinking the car can never squeeze them against it.
+    pair_top = {'FL': rule_y - air - pair_h, 'FR': rule_y - air - pair_h,
+                'RL': rule_y + air, 'RR': rule_y + air}
+    axle_y = {c: pair_top[c] + pair_h / 2 for c in axle_box}
     ink_l = left                                   # the reference's rule runs the block's width, between the
     ink_r = left + block_w                         # two pairs' rows
     col_l = left + col_w
     col_r = left + col_w + gap + car_w + gap
 
     head_top = top
-    v_top = pair_top['FL'] - 3
-    v_bottom = pair_top['RL'] + pair_h + 3
+    v_top = rule_y - car_len // 2 - 4
+    v_bottom = rule_y + car_len // 2 + 4
     stop_l = car_x - clear
     stop_r = car_x + car_w + clear
     axis = car_x + (car_w - 1) // 2
@@ -192,11 +197,13 @@ def main():
         if x['type'] == 'mtach':
             # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
             # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.
-            x['wTop'] = 10
-            x['wBot'] = 26
+            x['wTop'] = 8
+            x['wBot'] = 15                       # a narrow ribbon, as the reference's, not the M's fat wedge
             x['style'] = 'm3'                      # two tick lengths and a hatched red zone
         elif x['id'].startswith(('nl', 'nr', 'mnl', 'mnr')):
             x['h'] = 42
+            if x.get('text') == '8':
+                x['text'] = '7'      # the car redlines at 7000, so nothing above 7 is drawn
 
     drop = ('ico_', 'setup_', 'mico_', 'msetup_')
     d['widgets'] = [x for x in d['widgets'] if not x['id'].startswith(drop)]
