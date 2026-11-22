@@ -678,6 +678,7 @@ uniform float u_value;    // 0..1
 uniform float u_orange;   // 0..1, orange dashes from here
 uniform float u_redFrom;  // 0..1, red dashes from here (the redline)
 uniform float u_shiftNow;
+uniform float u_style;    // 0 = the M8's bar, 1 = the M3's (two tick lengths, hatched red zone)
 uniform vec3 u_red;
 
 float cov(float d) { return clamp(0.5 - d, 0.0, 1.0); }
@@ -706,6 +707,7 @@ void main() {
         float across = clamp(d / w, 0.0, 1.0);
         float yn = y0 - u_value * (y0 - y8);
         vec4 g = vec4(0.62, 0.67, 0.74, mix(0.42, 0.06, across));          // empty glass (bright at the outer edge, as the M8's)
+        if (u_style > 0.5) g = vec4(0.66, 0.71, 0.78, mix(0.62, 0.20, across));   // the M3's silver glass
         if (p.y > yn) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
         if (p.y > y0 - 20.0) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
@@ -725,12 +727,23 @@ void main() {
             c = over(vec4(redM ? u_red : vec3(1.0, 0.6, 0.1), 0.95), c);
         }
     }
-    // ticks every 1000 rpm: bright, from the outer edge 24 px into the glass, as the M8 draws them
+    // ticks every 1000 rpm: bright, from the outer edge 24 px into the glass, as the M8 draws them.
+    // The M3 draws two lengths — a long mark on every 2000, a short one on the odd 1000 — and hatches the
+    // red zone, so both live behind u_style and the M8's bar is unchanged.
     float kk = floor(t * u_ticks + 0.5);
     float yk = y0 - kk / u_ticks * (y0 - y8);
-    if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < 24.0) {
+    float major = u_style > 0.5 ? 1.0 - mod(kk, 2.0) : 1.0;
+    float tickLen = u_style > 0.5 ? mix(10.0, 24.0, major) : 24.0;
+    if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < tickLen) {
         float ty = abs(p.y - yk) - 1.5;
         c = over(vec4(0.93, 0.95, 0.98, cov(ty)), c);
+    }
+    if (u_style > 0.5) {
+        // the red zone: 45 degree hatch running out from the outer edge, in place of the solid block
+        float redT = t >= u_redFrom ? 1.0 : 0.0;
+        float hatch = mod(p.y + d * 1.6, 7.0);
+        float band = clamp(d + 0.5, 0.0, 1.0) * clamp(18.0 - d, 0.0, 1.0);
+        c = over(vec4(u_red, 0.9 * redT * band * clamp(hatch - 3.4, 0.0, 1.0)), c);
     }
     gl_FragColor = c;
 }

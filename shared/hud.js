@@ -2282,6 +2282,7 @@ class HudApp {
             c.uniform(ref, 'u_orange', [orange]);
             c.uniform(ref, 'u_redFrom', [redFrom]);
             c.uniform(ref, 'u_red', rgb(t.hot));
+            c.uniform(ref, 'u_style', [w.style === 'm3' ? 1 : 0]);
         }
         else if (w.type === 'grid') {
             c.uniform(ref, 'u_size', [w.w, w.h]);

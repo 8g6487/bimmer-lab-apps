@@ -183,6 +183,7 @@ def main():
             # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.
             x['wTop'] = 10
             x['wBot'] = 26
+            x['style'] = 'm3'                      # two tick lengths and a hatched red zone
         elif x['id'].startswith(('nl', 'nr', 'mnl', 'mnr')):
             x['h'] = 42
 
