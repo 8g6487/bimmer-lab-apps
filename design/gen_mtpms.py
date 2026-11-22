@@ -58,8 +58,8 @@ def main():
     adv = advance(digits, '88') / 2              # one digit
     pair_h = round(1.18 * d_cell) + d_cell       # the temperature line sits below the pressure one
     pair_gap = round(0.30 * d_cell)              # air between the two axles' pairs
-    col_w = 2 * adv + round(0.40 * d_cell)
-    gap = round(0.52 * p)
+    col_w = 2 * adv + round(0.80 * d_cell)        # wide enough for "2.3" centred, not just for two digits
+    gap = round(0.34 * p)
     clear = round(0.30 * p)
     head_w = round(d_cell * 0.95)
     u_top, u_bot = ink(unit, 'psi')
