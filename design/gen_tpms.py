@@ -100,7 +100,9 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     block_bottom = r1 + rows[3] + d
     head_bottom = head_top + head_h
 
-    car_top = r1 + round(1.42 * pitch)
+    # the rule sits on the rows' midpoint (the photo: (377.5-253)/71 = 1.75), and the car rides on the rule
+    rule_y = round(r1 + (rows[1] + rows[2]) / 2 + hcell / 2)   # the ink centres of the two middle rows
+    car_top = rule_y - round(car_len / 2)
     car_bottom = car_top + car_len
 
     left_edge = round(CX - car_w / 2 - gap)    # right edge of the left column
@@ -116,15 +118,16 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     unit_x = glyph_x + glyph + 18
     glyph_y = round(head_top + (psi[0] + psi[1]) / 2 - glyph / 2)   # on the psi line, not across both
 
-    rule_y = r1 + round(2.04 * pitch)
-
     box_w, box_h = 0.261, 0.239            # the photo's tyre well, mirrored to the four corners
     dot_w = round(box_w * car_w * 0.62)
     dot_h = round(box_h * car_len * 0.78)
     out = max(0.0, (dot_w - box_w * car_w) / 2)   # how far a capsule reaches outside the body
-    clear = round(0.36 * pitch)                   # the photo keeps ~0.38 pitch between rule and car
+    clear = round(0.30 * pitch)                   # the photo's ~0.38 pitch, trimmed 5 px on your note
     stop_l = round(car_x - out - clear)           # stop outside the tyres, and with the photo's gap
     stop_r = round(car_x + car_w + out + clear)
+
+    v_top = r1 + round(0.10 * hcell)                       # the first row's ink top
+    v_bottom = r1 + rows[3] + round(0.75 * hcell)          # the last row's ink bottom, a touch short
 
     widgets = [
         # BMW's cluster is behind a dark panel here: the theme draws over its gauges, not on top of them
@@ -137,10 +140,11 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
          'x': stop_r, 'y': rule_y - 1, 'w': ink_r - stop_r, 'h': 2, 'color': LINE},
         # two segments, not one line with a hole: the car sprite is semi-transparent, so a line drawn behind it
         # ghosts through the bonnet and the boot
-        {'id': 'rules-v-top', 'type': 'fill', 'z': 1, 'x': CX - 1, 'y': head_bottom,
-         'w': 2, 'h': car_top - head_bottom - clear, 'color': LINE},
+        # the top segment starts with the first row's reading, not up at the heading
+        {'id': 'rules-v-top', 'type': 'fill', 'z': 1, 'x': CX - 1, 'y': v_top,
+         'w': 2, 'h': car_top - v_top - clear, 'color': LINE},
         {'id': 'rules-v-bottom', 'type': 'fill', 'z': 1, 'x': CX - 1, 'y': car_bottom + clear,
-         'w': 2, 'h': block_bottom - car_bottom - clear, 'color': LINE},
+         'w': 2, 'h': v_bottom - car_bottom - clear, 'color': LINE},
 
         # the car, as the reference photo draws it
         {'id': 'car', 'type': 'sprite', 'name': 'car-photo', 'z': 2,
@@ -151,7 +155,7 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
          'x': glyph_x, 'y': glyph_y, 'w': glyph, 'h': glyph},
         {'id': 'unit-pressure', 'type': 'text', 'z': 4, 'x': unit_x, 'y': head_top - psi[0],
          'w': 140, 'h': hcell, 'text': '{{u:pressure}}', 'font': heading_font, 'align': 'left', 'color': HEAD},
-        {'id': 'unit-temp', 'type': 'text', 'z': 4, 'x': unit_x, 'y': head_top + (psi[1] - psi[0]) + 6 - deg[0],
+        {'id': 'unit-temp', 'type': 'text', 'z': 4, 'x': unit_x, 'y': head_top + (psi[1] - psi[0]) + 7 - deg[0],
          'w': 140, 'h': hcell, 'text': '{{u:temp}}', 'font': heading_font, 'align': 'left', 'color': HEAD},
     ]
     # the four tyres, exactly where the car's own tyres were painted out of the sprite (a hair larger, so the
