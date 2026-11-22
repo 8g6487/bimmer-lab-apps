@@ -27,11 +27,11 @@ const TYPES = {
     grid: [],
     gridlabels: ['font'],
     segbar: ['signal', 'max'],
-    mdash: [],
+    mdash: ['?style'],
     sdash: ['geo', 'k', 'band', 'ticks', 'fuelSeg', 'oilSeg', 'strip', 'topEnd'],
     mview: ['path', 'scale', 'dial', 'dialAng', 'line'],
     vdash: ['tach', 'segs'],
-    mtach: ['side', 'y0', 'y8', 'ym', 'xm', 'kTop', 'kBot', 'wBot', 'wTop', 'max', 'style'],
+    mtach: ['side', 'y0', 'y8', 'ym', 'xm', 'kTop', 'kBot', 'wBot', 'wTop', 'max', '?style'],
     icon: ['icon'],
     sprite: ['name'],
     swatch: [],
@@ -116,7 +116,13 @@ class Layouts {
             if (w.conn !== undefined && !(Number.isInteger(w.conn) && w.conn >= 0 && w.conn <= 3)) bad(at + ' "conn" must be 0..3 (the connection to cluster-render)');
             if (w.toggle !== undefined && !/^!?[a-zA-Z0-9_]+(=[a-zA-Z0-9_]+)?$/.test(String(w.toggle))) bad(at + ' has a bad toggle "' + w.toggle + '"');
             if (w.hole !== undefined && !(Array.isArray(w.hole) && w.hole.length === 4 && w.hole.every((n) => typeof n === 'number'))) bad(at + ' "hole" must be [x, y, w, h]');
-            TYPES[w.type].forEach((k) => { if (w[k] === undefined) bad(at + ' (' + w.type + ') needs "' + k + '"'); });
+            // A key written '?name' is optional: the widget may omit it and the renderer falls back to its
+            // default (that is how later additions such as "style" stay backwards compatible).
+            TYPES[w.type].forEach((k) => {
+                const opt = k.charAt(0) === '?';
+                const key = opt ? k.slice(1) : k;
+                if (w[key] === undefined && !opt) bad(at + ' (' + w.type + ') needs "' + key + '"');
+            });
         });
     }
 

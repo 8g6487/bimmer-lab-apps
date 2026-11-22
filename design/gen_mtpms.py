@@ -21,7 +21,7 @@ BOX = (1428, 196, 316, 276)          # x, y, w, h - the band the setup rows used
 DIGIT, UNIT = 'm_pt', 'm_pu'
 TOP = [236, 240, 244, 255]           # numbers, as in the M theme
 HEAD = [150, 158, 170, 255]          # wheel + units, a step dimmer
-LINE = [108, 116, 128, 255]
+LINE = [150, 158, 170, 255]
 BG = [6, 8, 11, 255]
 
 
@@ -56,17 +56,18 @@ def main():
     d_cell = digits['cellHeight']
     p = round(d_cell * 1.45)                     # row pitch of one reading
     adv = advance(digits, '88') / 2              # one digit
-    pair_h = round(1.18 * d_cell) + d_cell       # the temperature line sits below the pressure one
+    pair_lead = round(1.02 * d_cell)             # temperature line's gap under the pressure one
+    pair_h = pair_lead + d_cell
     pair_gap = round(0.30 * d_cell)              # air between the two axles' pairs
     col_w = 2 * adv + round(0.80 * d_cell)        # wide enough for "2.3" centred, not just for two digits
     gap = round(0.34 * p)
-    clear = round(0.30 * p)
+    clear = round(0.16 * p)
     head_w = round(d_cell * 0.95)
     u_top, u_bot = ink(unit, 'psi')
     t_top, t_bot = ink(unit, 'C')
     cell_u = unit['cellHeight']
-    head_h = (u_bot + 6 - t_top) + cell_u        # psi box, then the °C box underneath
-    head_gap = round(0.45 * p)
+    head_h = (u_bot + 1 - t_top) + cell_u        # psi box, then the °C box underneath
+    head_gap = round(0.62 * p)
 
     x, y, bw, bh = BOX
     # The car has to be long enough to hold the two axles apart: each corner's pair is centred on its
@@ -74,10 +75,11 @@ def main():
     # pair_h + pair_gap.
     # The car must stay near the size it is in the TPMS theme (53x101) — it is a 46x89 photo sprite, so
     # anything much larger smears. 1.19x still keeps the two axles far enough apart for the pairs.
-    car_len = 100
+    car_len = 92
     car_w = max(8, round(car_len * 53 / 101))
     block_w = 2 * col_w + 2 * gap + car_w
-    block_h = head_h + head_gap + car_len
+    tail = round(0.58 * p)                     # room under the car for the bottom of the cross
+    block_h = head_h + head_gap + car_len + tail
 
     left = x + (bw - block_w) // 2
     top = y + (bh - block_h) // 2
@@ -98,7 +100,7 @@ def main():
     tyre_h = max(8, round(0.86 * box_h * car_len))
     axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
     pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
-    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2) + 3   # sit in the whitespace between the two rows
+    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2)      # the whitespace between the two rows' pairs
     ink_l = left                                   # the reference's rule runs the block's width, between the
     ink_r = left + block_w                         # two pairs' rows
     col_l = left + col_w
@@ -116,12 +118,14 @@ def main():
               'x': ink_l, 'y': rule_y, 'w': stop_l - ink_l, 'h': 2, 'color': LINE})
     w.append({'id': 'tp-rules-h-right', 'type': 'fill', 'z': 2,
               'x': stop_r, 'y': rule_y, 'w': ink_r - stop_r, 'h': 2, 'color': LINE})
+    vtop_y = head_top + head_h + 2
     w.append({'id': 'tp-rules-v-top', 'type': 'fill', 'z': 2,
-              'x': axis, 'y': head_top + head_h + 4, 'w': 2,
-              'h': max(2, v_top - (head_top + head_h + 4)), 'color': LINE})
+              'x': axis, 'y': vtop_y, 'w': 2,
+              'h': max(2, (car_top - 4) - vtop_y), 'color': LINE})
+    vbot_y = car_top + car_len + 4                     # the foot starts under the car, not at the last pair
     w.append({'id': 'tp-rules-v-bottom', 'type': 'fill', 'z': 2,
-              'x': axis, 'y': v_bottom, 'w': 2,
-              'h': max(2, car_top + car_len - v_bottom), 'color': LINE})
+              'x': axis, 'y': vbot_y, 'w': 2,
+              'h': max(2, (top + block_h - 3) - vbot_y), 'color': LINE})
     w.append({'id': 'tp-car', 'type': 'sprite', 'name': 'car-photo', 'z': 3,
               'x': car_x, 'y': car_top, 'w': car_w, 'h': car_len})
 
@@ -137,7 +141,7 @@ def main():
               'x': head_x + glyph + 5, 'y': head_top - u_top, 'w': word, 'h': unit['cellHeight'],
               'text': '{{u:pressure}}', 'font': UNIT, 'align': 'left', 'color': HEAD})
     w.append({'id': 'tp-unit-t', 'type': 'text', 'z': 4,
-              'x': head_x + glyph + 5, 'y': head_top + u_bot + 6 - t_top, 'w': word,
+              'x': head_x + glyph + 5, 'y': head_top + u_bot + 1 - t_top, 'w': word,
               'h': unit['cellHeight'],
               'text': '{{u:temp}}', 'font': UNIT, 'align': 'left', 'color': HEAD})
 
@@ -153,7 +157,7 @@ def main():
                               ('RL', 'l', 2), ('RR', 'r', 2)):
         for kind, off, font_id, colour, extra in (
                 ('P', 0, DIGIT, TOP, {'colorBy': 'tyre', 'corner': corner}),
-                ('T', round(1.18 * d_cell), DIGIT, TOP, {})):
+                ('T', pair_lead, DIGIT, TOP, {})):
             wx = col_l - col_w if side == 'l' else col_r
             align = 'center'
             box = {'id': 'tp-%s%s' % (kind.lower(), corner.lower()), 'type': 'text', 'z': 5,
@@ -183,6 +187,8 @@ def main():
                     g['r'] = 112
 
     for x in d['widgets']:
+        if x['type'] == 'mdash':
+            x['style'] = 'm3'                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
             # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
             # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.

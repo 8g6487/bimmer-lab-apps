@@ -2264,6 +2264,7 @@ class HudApp {
             c.uniform(ref, 'u_segSlant', [isNum(w.segSlant) ? w.segSlant : 9]);
             c.uniform(ref, 'u_hole', this._hole(w));
             c.uniform(ref, 'u_holeR', [this._holeRadius(w)]);
+            c.uniform(ref, 'u_style', [w.style === 'm3' ? 1 : 0]);   // the M3's spine + tick ladder instead of the M8's bezel
             x.gauges = [['u_gaugeL', L], ['u_gaugeR', R]];
             x.bars = bars;
         } else if (w.type === 'mtach') {

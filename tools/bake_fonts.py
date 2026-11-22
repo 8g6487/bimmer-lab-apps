@@ -53,7 +53,7 @@ HUD_FONTS = [
 ]
 # Cluster Themes, 1920x720 LCD. GT3: the race-dash look, Barlow Condensed.
 CLUSTER_FONTS = [
-    ('m_pt', 'eurostile.ttf', 24, DIGITS + '.:- '),
+    ('m_pt', 'eurostile.ttf', 22, DIGITS + '.:- '),
     ('m_pu', 'microgramma-d.ttf', 28, LOWER + UPPER + DIGITS + '°/-. '),
     ('gear', 'BarlowCondensed-Bold.ttf', 330, DIGITS + 'PRND-'),
     ('big', 'BarlowCondensed-Bold.ttf', 124, DIGITS + '.:-'),   # 124: "20.3 PSI" fits a 280 px box beside the hood; ':' for a clock in a readout slot

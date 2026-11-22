@@ -468,6 +468,7 @@ uniform vec4 u_segMax;    // segments per bar
 uniform float u_segSlant; // px each segment leans
 uniform vec4 u_hole;      // the map window x, y, w, h px, already inset (w 0 = none): cut see-through over the map
 uniform float u_holeR;    // its corner radius px
+uniform float u_style;    // 0 = the M8's hatched bezel, 1 = the M3's spine and tick ladder
 
 const float PI = 3.14159265;
 
@@ -583,9 +584,21 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
     float bez = rIn(min(rb - 112.5, 124.0 - rb), ends, 2.0);
     if (bez > -1.5) {
         float ab = atan(qb.y, qb.x);
-        float hatch = step(0.5, fract(ab * 30.0));
-        float edge = cov(abs(bez) * k - 0.8);
-        c = over(vec4(0.8, 0.82, 0.88, min(1.0, cov(-bez * k) * (0.4 + 0.35 * hatch) + 0.7 * edge)), c);
+        if (u_style > 0.5) {
+            // the M3's bracket: a single bright spine on the outside, with a fine ladder of radial ticks inside it
+            // (every fifth tick reaches closer to the glass). No hatching: that is the M8's chrome bezel.
+            float tstep = 0.034;                                         // radians between ticks
+            float fr = abs(fract(ab / tstep) - 0.5) * tstep * rb;        // px to the nearest tick
+            float major = step(0.5, fract(ab / (tstep * 4.0)));
+            float tickEnd = mix(115.5, 119.5, major);
+            float tick = cov(fr * k - 0.7) * smoothstep(112.0, 114.0, rb) * (1.0 - smoothstep(tickEnd - 0.8, tickEnd, rb));
+            float spine = cov(abs(rb - 122.5) * k - 0.65);
+            c = over(vec4(0.84, 0.87, 0.92, max(spine, 0.75 * tick)), c);
+        } else {
+            float hatch = step(0.5, fract(ab * 30.0));
+            float edge = cov(abs(bez) * k - 0.8);
+            c = over(vec4(0.8, 0.82, 0.88, min(1.0, cov(-bez * k) * (0.4 + 0.35 * hatch) + 0.7 * edge)), c);
+        }
     }
     // the glass
     float dOut = 120.0 - length(q);
