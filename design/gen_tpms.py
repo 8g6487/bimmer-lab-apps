@@ -23,6 +23,7 @@ FONT_DIR = os.path.join(APP, 'hud', 'fonts')
 W, H = 1920, 720
 CONTENT_H = 660                 # y 660..720 is BMW's own bottom strip
 CX = 960
+AXIS = None   # filled in once car_w is known; the cross hangs off the car's own centre
 
 TOP = [236, 240, 244, 255]      # the numbers
 HEAD = [150, 158, 170, 255]     # the heading: wheel, psi, °C — deliberately a step dimmer than the numbers
@@ -82,6 +83,7 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     car_len = round(1.25 * pitch)
     car_w = round(car_len * SPRITE_W / SPRITE_H)
     car_x = round(CX - car_w / 2)
+    AXIS = car_x + (car_w - 1) // 2   # left edge of the 2 px stroke, so its centre lands on the car's centre
 
     rows = [0, pitch, round(2.52 * pitch), round(3.52 * pitch)]
     gap = round(0.52 * pitch)                  # white between the numbers and the car
@@ -141,9 +143,9 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
         # two segments, not one line with a hole: the car sprite is semi-transparent, so a line drawn behind it
         # ghosts through the bonnet and the boot
         # the top segment starts with the first row's reading, not up at the heading
-        {'id': 'rules-v-top', 'type': 'fill', 'z': 1, 'x': CX - 1, 'y': v_top,
+        {'id': 'rules-v-top', 'type': 'fill', 'z': 1, 'x': AXIS, 'y': v_top,
          'w': 2, 'h': car_top - v_top - clear, 'color': LINE},
-        {'id': 'rules-v-bottom', 'type': 'fill', 'z': 1, 'x': CX - 1, 'y': car_bottom + clear,
+        {'id': 'rules-v-bottom', 'type': 'fill', 'z': 1, 'x': AXIS, 'y': car_bottom + clear,
          'w': 2, 'h': v_bottom - car_bottom - clear, 'color': LINE},
 
         # the car, as the reference photo draws it
