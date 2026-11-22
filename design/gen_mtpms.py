@@ -84,8 +84,12 @@ def main():
     car_top = top + head_h + head_gap
     r1 = car_top
     axle_box = {'FL': 0.182, 'FR': 0.182, 'RL': 0.682, 'RR': 0.682}
-    tyre_w = max(5, round(0.19 * car_w))
-    tyre_h = round(tyre_w * 2.3)
+    box_x, box_w = 0.0, 0.261                     # where car-photo paints a tyre, as a fraction of the body
+    box_y, box_h = 0.182, 0.239
+    # The car sprite paints its own tyres; our capsules must sit inside those patches, so they are
+    # sized from the patch and inset, not from the whole body.
+    tyre_w = max(5, round(0.62 * box_w * car_w))
+    tyre_h = max(8, round(0.86 * box_h * car_len))
     axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
     pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
     rule_y = round((axle_y['FL'] + axle_y['RL']) / 2)
@@ -130,10 +134,6 @@ def main():
               'h': unit['cellHeight'],
               'text': '{{u:temp}}', 'font': UNIT, 'align': 'left', 'color': HEAD})
 
-    tyre_w = max(5, round(0.19 * car_w))
-    tyre_h = round(tyre_w * 2.3)
-    box_x, box_w = 0.0, 0.261
-    box_y, box_h = 0.182, 0.239
     for corner, bx, by in (('FL', box_x, box_y), ('FR', 1 - box_x - box_w, box_y),
                            ('RL', box_x, 0.682), ('RR', 1 - box_x - box_w, 0.682)):
         w.append({'id': 'tp-tyre-' + corner.lower(), 'type': 'sprite', 'name': 'tyre', 'z': 5,
@@ -146,11 +146,8 @@ def main():
         for kind, off, font_id, colour, extra in (
                 ('P', 0, DIGIT, TOP, {'colorBy': 'tyre', 'corner': corner}),
                 ('T', round(1.18 * d_cell), DIGIT, TOP, {})):
-            if side == 'l':
-                wx = col_l - col_w
-            else:
-                wx = col_r
-            align = 'left'
+            wx = col_l - col_w if side == 'l' else col_r
+            align = 'center'
             box = {'id': 'tp-%s%s' % (kind.lower(), corner.lower()), 'type': 'text', 'z': 5,
                    'x': wx, 'y': pair_top[corner] + off, 'w': col_w, 'h': round(1.25 * d_cell),
                    'text': '{{tyre%s:%s}}' % (kind, corner), 'font': font_id,
@@ -172,8 +169,8 @@ def main():
         if x['type'] == 'mtach':
             # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
             # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.
-            x['wTop'] = 12
-            x['wBot'] = 40
+            x['wTop'] = 10
+            x['wBot'] = 26
         elif x['id'].startswith(('nl', 'nr', 'mnl', 'mnr')):
             x['h'] = 42
 
