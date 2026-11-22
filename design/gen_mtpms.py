@@ -94,11 +94,12 @@ def main():
     tyre_h = max(8, round(0.86 * box_h * car_len))
     axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
     pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
-    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2)
-    ink_l = left
+    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2) - 2   # sit in the whitespace between the two rows
+    ink_l = left                                   # the reference's rule runs the block's width, between the
+    ink_r = left + block_w                         # two pairs' rows
     col_l = left + col_w
     col_r = left + col_w + gap + car_w + gap
-    ink_r = left + block_w
+
     head_top = top
     v_top = pair_top['FL'] - 3
     v_bottom = pair_top['RL'] + pair_h + 3
