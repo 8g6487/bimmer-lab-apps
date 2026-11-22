@@ -72,7 +72,9 @@ def main():
     # The car has to be long enough to hold the two axles apart: each corner's pair is centred on its
     # wheel, and the pairs must not touch, so the axle spacing (0.5 * car_len) has to exceed
     # pair_h + pair_gap.
-    car_len = max(2 * (pair_h + pair_gap), round(2.13 * p))
+    # The car must stay near the size it is in the TPMS theme (53x101) — it is a 46x89 photo sprite, so
+    # anything much larger smears. 1.19x still keeps the two axles far enough apart for the pairs.
+    car_len = 120
     car_w = max(8, round(car_len * 53 / 101))
     block_w = 2 * col_w + 2 * gap + car_w
     block_h = head_h + head_gap + car_len
@@ -165,6 +167,15 @@ def main():
     #    and the numeral at the top tick is 8, not 7.
     # 2. The reference band is a narrower ribbon than the M theme's wedge.
     # 3. Its numerals are a little larger.
+    # The reference's fuel/oil brackets are smaller and thinner than the M theme's: the MDASH shader scales the
+    # whole bracket off the radius (`kd = u_gaugeL.z / 120.0`), so a smaller r is also a thinner arc.
+    for x in d['widgets']:
+        if x['type'] == 'mdash':
+            for k in ('gaugeL', 'gaugeR'):
+                g = x.get(k)
+                if isinstance(g, dict):
+                    g['r'] = 112
+
     for x in d['widgets']:
         if x['type'] == 'mtach':
             # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
