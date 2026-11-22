@@ -454,7 +454,7 @@ def build_start_widget(spec, app_id, icon_src, out, pkg_out=None):
     wuuid = u(app_id, 'start-widget')
     shutil.rmtree(out, ignore_errors=True)
     for d in ('uiDescription', 'strings', 'resources'):
-        os.makedirs(os.path.join(out, d))
+        os.makedirs(os.path.join(out, d), exist_ok=True)
     app_json = {'schemaVersion': '1.3.0', 'application': {
         'uuid': wuuid, 'type': 'StartWidget', 'name': app_id + '_widget', 'vendor': spec.get('vendor', 'custom'),
         'version': '1.0', 'defaultLanguage': 'en_GB',
@@ -481,9 +481,9 @@ def build_start_widget(spec, app_id, icon_src, out, pkg_out=None):
     shutil.copy(icon_src, os.path.join(out, 'resources', icon))
     if pkg_out:
         shutil.rmtree(pkg_out, ignore_errors=True)
-        os.makedirs(os.path.join(pkg_out, 'uiDescriptions', 'ID7'))
-        os.makedirs(os.path.join(pkg_out, 'variantGroups', 'Common', 'texts'))
-        os.makedirs(os.path.join(pkg_out, 'variantGroups', 'Common', 'images'))
+        os.makedirs(os.path.join(pkg_out, 'uiDescriptions', 'ID7'), exist_ok=True)
+        os.makedirs(os.path.join(pkg_out, 'variantGroups', 'Common', 'texts'), exist_ok=True)
+        os.makedirs(os.path.join(pkg_out, 'variantGroups', 'Common', 'images'), exist_ok=True)
         a = app_json['application']
         pj = {'schemaVersion': app_json['schemaVersion'], 'application': {k: a[k] for k in (
             'uuid', 'type', 'name', 'vendor', 'version', 'defaultLanguage', 'stringBundleUuid', 'resourceBundleUuid', 'entryPoints')}}
@@ -508,9 +508,9 @@ def build(app_id, language='en'):
     stage = os.path.join(DIST, app_id)
     shutil.rmtree(stage, ignore_errors=True)
     src = os.path.join(stage, 'source')
-    os.makedirs(os.path.join(src, 'javascript', 'kit'))
-    os.makedirs(os.path.join(src, 'config'))
-    os.makedirs(os.path.join(src, 'node_modules', 'oap-sdk'))
+    os.makedirs(os.path.join(src, 'javascript', 'kit'), exist_ok=True)
+    os.makedirs(os.path.join(src, 'config'), exist_ok=True)
+    os.makedirs(os.path.join(src, 'node_modules', 'oap-sdk'), exist_ok=True)
 
     manifest = manifest_for(json.loads(json.dumps(spec)))
     missing = fit_to_unit(manifest, spec)
@@ -586,7 +586,7 @@ def build(app_id, language='en'):
     for f in os.listdir(kr):
         p = os.path.join(kr, f)
         if os.path.isdir(p):
-            shutil.copytree(p, os.path.join(src, 'javascript', 'kit', f))
+            shutil.copytree(p, os.path.join(src, 'javascript', 'kit', f), dirs_exist_ok=True)
         else:
             shutil.copy(p, os.path.join(src, 'javascript', 'kit', f))
     if missing:
@@ -640,9 +640,9 @@ def build(app_id, language='en'):
         },
     }
     pr = os.path.join(src, 'rhmiData')
-    os.makedirs(os.path.join(pr, 'uiDescriptions', 'ID7'))
-    os.makedirs(os.path.join(pr, 'variantGroups', 'Common', 'texts'))
-    os.makedirs(os.path.join(pr, 'variantGroups', 'Common', 'images'))
+    os.makedirs(os.path.join(pr, 'uiDescriptions', 'ID7'), exist_ok=True)
+    os.makedirs(os.path.join(pr, 'variantGroups', 'Common', 'texts'), exist_ok=True)
+    os.makedirs(os.path.join(pr, 'variantGroups', 'Common', 'images'), exist_ok=True)
     pj = json.loads(json.dumps(app_json))
     pj['application']['uiDescriptions'] = [{'applicationFilePath': './uiDescriptions/ID7/application.xml',
                                             'uiDescriptionFilePath': './uiDescriptions/ID7/uiDescription.json', 'hmi': ['ID7']}]
@@ -656,9 +656,9 @@ def build(app_id, language='en'):
     make_icon(spec, os.path.join(pr, 'variantGroups', 'Common', 'images', icon))
 
     ir = os.path.join(stage, 'rhmiData')
-    os.makedirs(os.path.join(ir, 'uiDescription'))
-    os.makedirs(os.path.join(ir, 'strings'))
-    os.makedirs(os.path.join(ir, 'resources'))
+    os.makedirs(os.path.join(ir, 'uiDescription'), exist_ok=True)
+    os.makedirs(os.path.join(ir, 'strings'), exist_ok=True)
+    os.makedirs(os.path.join(ir, 'resources'), exist_ok=True)
     ij = json.loads(json.dumps(app_json))
     ij['application'].update({
         'entryPointsStringBundleUuid': u(app_id, 'ep-strings'), 'entryPointsResourceBundleUuid': u(app_id, 'ep-resources'),
@@ -677,7 +677,7 @@ def build(app_id, language='en'):
         print('  home-screen widget: %s (%s)' % (info['component'], info['layout']))
 
     # --- installer helpers + metadata ---
-    shutil.copytree(os.path.join(KIT, 'tools', 'oapgen'), os.path.join(stage, 'oapgen'))
+    shutil.copytree(os.path.join(KIT, 'tools', 'oapgen'), os.path.join(stage, 'oapgen'), dirs_exist_ok=True)
     meta = {'id': app_id, 'version': ver, 'title': spec['title'], 'native': NATIVE, 'kit': 1}
     # app.json signals with "_optional": "<what the app loses>": a unit without that interface
     # still installs the app, without it (deploy/mgu-app-install.sh says what is missing)

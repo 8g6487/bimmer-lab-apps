@@ -123,6 +123,20 @@ Calm and premium. One ribbon of light runs along under the top edge of the clust
 <p align="center"><img src="../../docs/images/cluster-ribbon.png" width="900" alt="Ribbon theme"></p>
 <p align="center"><img src="../../docs/images/cluster-ribbon-christmas.png" width="900" alt="Ribbon theme, Christmas edition"></p>
 
+### TPMS
+
+The car's tyre readout, drawn the way BMW's own cluster draws it: a top view car nose up in the middle, the fronts above the rears either side of it, and each corner's pressure over its temperature. A five spoke wheel heads the units, thin rules sit between the pairs and above and below the car. The four tyres on the car are lit by their pressure: green while a corner is in band, amber below 2.0 bar, red at or below 1.5 bar, amber again over 65 °C, grey where the car sends no reading. A corner that is out of band also turns its pressure amber or red, everything else stays white. Both units follow the Units setting: psi and °F, or bar and °C.
+
+<p align="center"><img src="../../docs/images/cluster-tpms.png" width="900" alt="TPMS theme"></p>
+
+The car and the wheel are pictures, not drawings: `hud/sprites/car-top.json` and `hud/sprites/wheel.json` (base64 RGBA, made by `design/make_sprites.py`). Any other theme, or the HUD app, can draw the same car where a readout needs one:
+
+```json
+{ "id": "car", "type": "sprite", "name": "car-top", "x": 920, "y": 300, "w": 80, "h": 160 }
+```
+
+A sprite keeps its own colours; add `"color": [r,g,b,a]` and it is tinted (that is how the wheel takes the theme's text colour). The four tyre lights on the TPMS car are separate icons on top of the picture, so they can change colour with the pressure.
+
 Minimal, Track, Drag, Rally, Retro 80s, Cruise, Dyno and Ribbon have no map window yet; with "Show Waze map inside the theme" on, Waze stays in its usual place while they show.
 
 More themes are on the way.

@@ -30,7 +30,10 @@ const rec = require('./record');
 // link): an older renderer still installed beside mgu-render never gets the apps
 const SOCKETS = process.env.MGU_RENDERD_SOCKET ? [process.env.MGU_RENDERD_SOCKET] : ['/run/mgu-renderd/renderd.sock', '/run/mgu-render/render.sock'];
 const SOCKET = SOCKETS[0];
-const isSocket = (p) => { try { return fs.statSync(p).isSocket(); } catch (e) { return false; } };
+const isSocket = (p) => {
+    if (process.platform === 'win32' && /^\\\\[.?]\\pipe\\/i.test(String(p))) return true;   // a named pipe is a socket here
+    try { return fs.statSync(p).isSocket(); } catch (e) { return false; }
+};
 const M = { HELLO: 1, PLACE: 2, SHOW: 3, ATLAS: 4, RAMP: 5, LAYER: 6, FRAME: 7, DROP_LAYER: 8, IMAGE: 9, GRAB: 10 };
 const E = { READY: 101, TICK: 102, ERROR: 103, STATS: 104, CCU: 105 };
 // touch (mgu-render, IterioDev's mgu-renderd): message 9 is CLAIM there; 105 and 106 come back as TOUCH and CLOSED

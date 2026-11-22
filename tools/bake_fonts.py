@@ -29,6 +29,14 @@ DIGITS = '0123456789'
 LOWER = 'abcdefghijklmnopqrstuvwxyz'
 # HUD Widgets, fitted to the part of the 800x480 HUD the driver can see (485x278 from the Nov 5 2026 grid
 # photo; 560x280 since Nov 9, the sizes stayed): hero 140 -> 96, big 42 -> 34, mid 30 -> 24; label and small stay, BMW's own "mph" is that size.
+# Preview faces: the bench's font picker (bench/server.js) lists everything baked for cluster_themes, so these are
+# baked at a ladder of sizes — a text widget blits glyphs 1:1, so "size" really means "which baked size".
+# Eurostile LT Std Demi and the four Microgramma Bold Extended cuts live in tools/fonts-src/ (eurostile*.ttf,
+# microgramma-*.ttf) and are picked up automatically at the sizes below; the free stand-ins are gone.
+PREVIEW_SIZES = (44, 56, 70, 88)
+PREVIEW_FAMILIES = []
+PREVIEW_CHARS = DIGITS + UPPER + LOWER + '.:-+°/% '
+
 HUD_FONTS = [
     # name, file, px size, characters
     ('hero', 'BarlowSemiCondensed-SemiBold.ttf', 96, DIGITS + 'PRND-'),
@@ -92,6 +100,11 @@ CLUSTER_FONTS = [
     # Rally: the huge gear and the readouts in the arc
     ('y_gear', 'BarlowCondensed-Bold.ttf', 300, DIGITS + 'PRNDSM-'),
     ('y_val', 'BarlowCondensed-Bold.ttf', 76, DIGITS + '.:-+°', 0, None, None, '°'),
+    # TPMS: BMW's own tyre readout is set in a Helvetica-like grotesque; Barlow Medium with a little stroke
+    # round it is that weight, tabular digits and all (stroke is why the digits stay in step as they change)
+    ('t_val', 'eurostile.ttf', 70, DIGITS + '.:- '),
+    ('t_unit', 'microgramma-d.ttf', 44, LOWER + UPPER + DIGITS + '°/-. ' + 'barpsi', 0, None, None, '', 4,
+              {'°': 0.52}),
     # Retro 80s: seven-segment digits (DSEG7 Classic, SIL OFL; the unlit 8s behind are the same font in "track")
     ('d7_big', 'DSEG7Classic-Bold.ttf', 170, DIGITS + '-'),
     ('d7_val', 'DSEG7Classic-Bold.ttf', 60, DIGITS + '-.:'),
@@ -108,12 +121,30 @@ CLUSTER_FONTS = [
     ('b_gear', 'Outfit[wght].ttf', 32, DIGITS + 'PRNDSM-', 0, 'SemiBold'),
     ('b_scale', 'Outfit[wght].ttf', 20, DIGITS, 0, 'Medium'),
 ]
-FONTS = {'idrive_hud_widgets': HUD_FONTS, 'cluster_themes': CLUSTER_FONTS}
+def preview_fonts():
+    """A size ladder for every face the bench may switch to: the families above, plus anything else dropped into
+    tools/fonts-src/ (a commercial Eurostile or Microgramma lands here the same way)."""
+    have = {f for (_n, f, _px, *_rest) in CLUSTER_FONTS}
+    fams = list(PREVIEW_FAMILIES)
+    seen = {f for (_k, f, _w) in fams}
+    for f in sorted(os.listdir(SRC)):
+        if not f.lower().endswith(('.ttf', '.otf')) or f in seen or f in have:
+            continue
+        key = ''.join(ch for ch in os.path.splitext(f)[0].lower() if ch.isalnum())[:16]
+        fams.append((key, f, None))
+    out = []
+    for key, f, weight in fams:
+        for px in PREVIEW_SIZES:
+            out.append((key + '_' + str(px), f, px, PREVIEW_CHARS, 0, weight))
+    return out
+
+
+FONTS = {'idrive_hud_widgets': HUD_FONTS, 'cluster_themes': CLUSTER_FONTS + preview_fonts()}
 PAD = 2
 ATLAS_W = 1024
 
 
-def bake(out, name, file, size, chars, stroke=0, weight=None, subs=None, tuck=''):
+def bake(out, name, file, size, chars, stroke=0, weight=None, subs=None, tuck='', track=0, shrink=None):
     """stroke: px of extra weight round every glyph (Michroma has one weight). weight: a named instance of a
     variable font (Orbitron: Regular .. Black), for the M theme's squared BMW-style gear, speed and numbers.
     subs: {char: glyph drawn for it} (Orbitron's zero is slashed; the M8's is plain, so its O stands in).
@@ -133,7 +164,7 @@ def bake(out, name, file, size, chars, stroke=0, weight=None, subs=None, tuck=''
 
     cells = []
     for c in chars:
-        adv = font.getlength(glyph(c)) + (2 * stroke if c != ' ' else 0)
+        adv = font.getlength(glyph(c)) + (2 * stroke if c != ' ' else 0) + (track if c != ' ' else 0)
         if c == ' ':
             cells.append((c, None, 0, round(adv if adv else size * 0.25)))
             continue
@@ -141,6 +172,13 @@ def bake(out, name, file, size, chars, stroke=0, weight=None, subs=None, tuck=''
         w = r - l + 2 * PAD
         img = Image.new('L', (w, height), 0)
         ImageDraw.Draw(img).text((PAD - l, PAD - top + drop.get(c, 0)), glyph(c), font=font, fill=255, anchor='ls', stroke_width=stroke, stroke_fill=255)
+        if shrink and c in shrink:                     # a superscript °: smaller ink, top of the cell, narrower advance
+            f_ = shrink[c]
+            img = img.resize((max(1, round(img.width * f_)), max(1, round(img.height * f_))), Image.LANCZOS)
+            canvas = Image.new('L', (w, height), 0)
+            canvas.paste(img, (0, 0))
+            img = canvas
+            adv = round(adv * f_) + 2
         shift = (tab - adv) / 2 if c in DIGITS else 0
         cells.append((c, img, round(l - PAD + shift), round(tab if c in DIGITS else adv)))
 
@@ -166,16 +204,34 @@ def bake(out, name, file, size, chars, stroke=0, weight=None, subs=None, tuck=''
         glyphs[c] = {'x': gx, 'y': gy, 'w': img.width, 'h': img.height, 'ox': ox, 'advance': adv}
     meta = {'source': file, 'size': size, 'cellHeight': height, 'baseline': PAD - top, 'glyphs': glyphs,
             'width': ATLAS_W, 'height': atlas_h, 'alpha': base64.b64encode(atlas.tobytes()).decode('ascii')}
-    with open(os.path.join(out, name + '.json'), 'w') as f:
+    with open(os.path.join(out, name + '.json'), 'w', encoding='utf-8') as f:
         json.dump(meta, f, separators=(',', ':'), ensure_ascii=False)
     print('%-6s %3dpx  cell height %3d  atlas %dx%d  %d glyphs' % (name, size, height, ATLAS_W, atlas_h, len(glyphs)))
 
 
 if __name__ == '__main__':
     import sys
-    for app in sys.argv[1:] or sorted(FONTS):
+    args = sys.argv[1:]
+    face = None
+    if '--face' in args:                               # --face eurostile_64: one atlas, any size the bench asks for
+        i = args.index('--face'); face = args[i + 1]; del args[i:i + 2]
+    for app in args or sorted(FONTS):
         out = os.path.join(APPS, app, 'hud', 'fonts')
         os.makedirs(out, exist_ok=True)
         print(app)
+        if face:
+            key, px = face.rsplit('_', 1)
+            stem = lambda f: ''.join(ch for ch in os.path.splitext(os.path.basename(f))[0].lower()
+                                     if ch.isalnum())[:16]
+            faces = {}
+            for sp in FONTS[app]:
+                pair = (sp[1], sp[5] if len(sp) > 5 else None)
+                faces.setdefault(stem(sp[1]), pair)          # `eurostile` for tools/fonts-src/eurostile.ttf
+                faces.setdefault(sp[0].rsplit('_', 1)[0], pair)
+            if key not in faces:
+                sys.exit('no family ' + key + ' in ' + app)
+            file, weight = faces[key]
+            bake(out, key + '_' + px, file, int(px), PREVIEW_CHARS, 0, weight)
+            continue
         for spec in FONTS[app]:
             bake(out, *spec)

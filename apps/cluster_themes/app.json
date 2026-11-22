@@ -25,6 +25,8 @@
     "waze.js",
     "previews.js",
     "sensors.js",
+    "tyre_grade.js",
+    "sprites.js",
     "badges.js",
     "screen.js",
     "runs.js",
@@ -116,7 +118,7 @@
       "key": "hudLayout",
       "label": "Theme (when not by drive mode)",
       "type": "choice",
-      "default": "gt3",
+      "default": "tpms",
       "options": [
         [
           "off",
@@ -181,6 +183,10 @@
         [
           "mapcal",
           "Map calibration"
+        ],
+        [
+          "tpms",
+          "TPMS car"
         ]
       ]
     },
@@ -188,7 +194,7 @@
       "key": "byMode",
       "label": "Change with SPORT / COMFORT / ECO PRO",
       "type": "bool",
-      "default": true
+      "default": false
     },
     {
       "key": "inComfort",

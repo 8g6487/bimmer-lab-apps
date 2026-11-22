@@ -265,6 +265,8 @@ const visible = require('./visible');
 const sun = require('./sun');
 const textRaster = require('./hud_text');
 const { paintIcon } = require('./icons');
+const sprites = require('./sprites');
+const tyreGrade = require('./tyre_grade');
 const shaders = require('./shaders');
 const calibration = require('./calibration');
 const Car = require('./kit/car');
@@ -291,7 +293,7 @@ const CLAIM_MS = 1000;
 
 const BOOST_SCALE = { factor: 0.01, offset: 0, invalid: 255 }; // see header comment
 // the widget types drawn as pixels (image layers, packed into sheets unless "own": true); the rest are shaders
-const IMAGE_TYPES = { text: true, scale: true, stripe: true, badge: true, gridlabels: true, icon: true, swatchimg: true, nav: true, garland: true };
+const IMAGE_TYPES = { text: true, scale: true, stripe: true, badge: true, gridlabels: true, icon: true, sprite: true, swatchimg: true, nav: true, garland: true };
 const STATUS_ASK_MS = 2000;      // after a rebuild: ask cluster-render for its own status text
 // an image layer is "stalled" until its first pixels reach cluster-render, which after a rebuild takes a second or two
 // through the upload budget: normal. Only one still stalled this long is logged as a problem (and its recovery)
@@ -2095,6 +2097,27 @@ class HudApp {
         return not ? !on : on;
     }
 
+    /** An icon's colour: its own "color", or the tyre band when the widget names a corner ("grade": "tyre"). */
+    _iconColor(w) {
+        if (w.grade === 'tyre' && w.corner) return tyreGrade.rgba(tyreGrade.of(this, w.corner));
+        return color(this.theme, w.color || 'fg');
+    }
+
+    _paintIcon(x) {
+        const w = x.w;
+        x.blit = this._iconColor(w);
+        this._blit(x, null, paintIcon(w.icon, w.w, w.h, x.blit));
+    }
+
+    /** A bitmap from hud/sprites (the car, the wheel), tinted with the widget's colour when it is a mask. */
+    _paintSprite(x) {
+        const w = x.w;
+        x.blit = this._iconColor(w);
+        const buf = sprites.paint(w.name, w.w, w.h, x.blit);
+        if (!buf) { this.log.warn('widget "' + w.id + '": no sprite "' + w.name + '"'); return; }
+        this._blit(x, null, buf);
+    }
+
     /** A widget: on its own layer (sheet null: an effect, or an image widget with "own": true), or a member of a sheet. */
     _create(w, sheet) {
         let ref, c;
@@ -2126,7 +2149,8 @@ class HudApp {
         } else if (w.type === 'gridlabels') this._paintGridLabels(x);
         else if (w.type === 'nav') this._navCreate(x);
         else if (w.type === 'garland') { x.tw = new Garland.Twinkle(w); this._blit(x, null, Garland.paint(w, x.tw.lvl, null)); }
-        else if (w.type === 'icon') this._blit(x, null, paintIcon(w.icon, w.w, w.h, color(t, w.color || 'fg')));
+        else if (w.type === 'icon') this._paintIcon(x);
+        else if (w.type === 'sprite') this._paintSprite(x);
         else if (w.type === 'sdash') {
             c.uniform(ref, 'u_size', [w.w, w.h]);
             c.uniform(ref, 'u_geo', w.geo);
@@ -2578,6 +2602,11 @@ class HudApp {
             if (!force && s === x.last) return;
             x.last = s; x.lastPaint = now;
             x.c.uniform(x.ref, 'u_text', this._atlasCodes(x, s), { type: 'vec4' });
+        } else if (w.type === 'icon' || w.type === 'sprite') {
+            if (w.grade !== 'tyre' || !w.corner) return;
+            const c = this._iconColor(w);
+            if (x.blit && c.join() === x.blit.join()) return;   // still the same band: nothing to redraw
+            if (w.type === 'sprite') this._paintSprite(x); else this._paintIcon(x);
         } else if (w.type === 'nav') this._navUpdate(x, now, force);
         else if (w.type === 'garland') this._garlandTick(x, now);
         else if (w.type === 'text') {
@@ -2585,6 +2614,11 @@ class HudApp {
             let s = (w.navHide && this.navShown) || smartTemps.hidden(this, w) || !this._shownNow(w) ? '' : this._resolve(w.text);   // nav turn showing / "showWhen"
             let role = w.color || 'fg';
             if (w.colorBy === 'verdict' && this.score.last) role = VERDICT[this.score.last.verdict] || role;
+            // a tyre that is fine keeps the widget's own white: only an out of band corner is coloured
+            if (w.colorBy === 'tyre' && w.corner) {
+                const g = tyreGrade.of(this, w.corner);
+                if (g !== 'ok') role = tyreGrade.rgba(g);
+            }
             if (w.near && this._nearMark(w.near[0]) === w.near[1]) role = w.nearColor || 'fg';
             // a readout slot goes red / blue at the shift point only while it shows engine speed or the shift point
             const shiftish = !w.slot || ['rpm', 'shiftAt'].indexOf((this.slotSensor(this.activeName, w.slot, this.layoutSlots) || {}).id) >= 0;

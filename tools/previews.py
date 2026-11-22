@@ -25,6 +25,12 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+if os.name == 'nt':
+    for _c in (r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+                r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe'):
+        if os.path.exists(_c):
+            CHROME = _c
+            break
 SKIP = {'off', 'grid', 'mapcal', 'wincal'}           # calibration layouts get no picture
 # the values every picture shows: 3rd gear at 4200 rpm, 61 mph, warm engine, a little boost, braking into a left turn
 SIGNALS = {'rpm': 4200, 'speed': 98, 'gear': 3, 'oil': 95, 'coolant': 90, 'boost': 1.1, 'torque': 290,
@@ -62,7 +68,8 @@ def shot(port, size, out):
                 return
             print('  (picture came out blank, try %d of 3)' % (attempt + 1), flush=True)
         except subprocess.TimeoutExpired:
-            subprocess.run(['pkill', '-f', '--screenshot=' + out], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq *'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) if os.name == 'nt' \
+                else subprocess.run(['pkill', '-f', '--screenshot=' + out], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print('  (Chrome hung, try %d of 3)' % (attempt + 1), flush=True)
     raise SystemExit('no good picture in three tries: ' + out)
 

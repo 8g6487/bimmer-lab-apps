@@ -70,7 +70,13 @@ def pack(folder, out):
         f.write(MAGIC + struct.pack('<I', len(index)) + index)
         for z in blob:
             f.write(z)
-    os.replace(tmp, out)
+    for _ in range(50):
+        try:
+            os.replace(tmp, out); break
+        except PermissionError:
+            import time; time.sleep(0.1)
+    else:
+        os.replace(tmp, out)
     return raw_total, os.path.getsize(out), len(entries)
 
 

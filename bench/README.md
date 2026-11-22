@@ -34,6 +34,17 @@ The page draws whichever target the app's `app.json` `config.target` names. One 
 
 **Car view** (the checkbox on the stage, on by default, `?car=0` turns it off): what the driver actually sees, drawn over the composited layers. On the cluster, a dark mask above the hood line (orange curve: the hood hides the top corners, down to y 273 at the left edge and y 240 at the right), BMW's gear box at x 1406-1597 y 342-419 filled solid black, and the seat-belt light rect at x 587-626 y 663-700. On the HUD, a dark mask outside the window seen through the windshield (x 120, y 100, 485x278; it moves with eye position and HUD height). The numbers come from car photos taken Nov 5 2026 (`design/photos/calibration-2026-11-05.json`) and live in one place, `shared/visible.js`: the server sends them to the page in its `hello` event, and the app's `layouts.js` runs the same `check()` on every layout it loads, so the app log warns per widget (`layout "gt3": speed_box: top-left corner 51 px under the hood`, `... overlaps BMW's gear box ...`, `... 30 px outside the visible HUD window ...`). Warnings only; a layout is never refused for this. The layers table flags each layer the check would warn about (`hood`, `box`, `belt`, `window`; hover for the reason).
 
+**Live font picker:** the header's `fonts` popover lists **one row per face the layout's text actually uses** (`/fonts` groups the layout's text widgets by their `font`), so every part can be restyled on its own, not just the numbers. Each row has a face select and a size select, and **Apply font** writes the result into `bench/.data/<app id>/layouts/<layout>.json` — the same data-folder override `scripts/deploy.sh` uses on the car — which the app watches and reloads by itself. **Reset** drops the override and the built layout takes over again.
+
+Size is a real choice only where a size ladder exists: a text widget blits its glyphs 1:1, so "size" means which baked atlas is used. `tools/bake_fonts.py` bakes the preview families at `PREVIEW_SIZES = (44, 56, 70, 88)`, named `<family>_<px>` (`euro_70`), and `fontFamilies()` in the server finds them by that suffix. A face with no ladder (e.g. `t_val`) shows its single cell height and cannot be resized.
+
+The families are `euro` (Michroma, a free Eurostile-like square grotesque) and `orb` (Orbitron Bold, a free Microgramma-like extended face); Eurostile LT Std and Microgramma themselves are commercial. **Any `.ttf`/`.otf` dropped into `tools/fonts-src/` is baked automatically** by `preview_fonts()` at the same four sizes, keyed by its file name, so the real faces appear in the picker after one `python tools/bake_fonts.py cluster_themes`.
+
+Text boxes are rescaled by `cell_new/cell_old` (height) and `advance_new/advance_old` (width) around their centre, so a bigger face previews instead of clipping inside a box sized for the old one. Rules, sprites and fills do not move, so a much larger face will overlap them — that is what a preview should show.
+
+`GET /fonts` → `{layout, used, roles:[{key,font,count,sample,cell,family,size}], families:[{key,sizes:[{font,size,cell}]}], overridden, fonts}`. `POST /font` takes `{roles: {"0": "euro_70", ...}}` (indices are positions in `roles`, recomputed from the built layout every time so applies never compound), `{reset: true}`, or the old `{value, head}` shortcut.`
+
+
 **Layer cap:** cluster-render draws at most 8 layers per client connection, 32 across all clients (`CompositorLimits` in its `src/compositor.h`; the 9th is refused with "too many layers"), confirmed on the car with the calibration grid's L1..L16 probe on Nov 5 2026. `BENCH_LAYER_CAP=8 node bench/server.js cluster_themes` models it, or set the "layer cap" number in the header (POST `/cap`; 0 = unlimited, the default). Layers past the cap, counted per connection in order of arrival across all targets and kinds (a `drop` frees a slot), get the event `{ ev: 'layer', ref, state: 'waiting', reason: 'bench: over the layer cap of N' }` instead of `shown`, are not drawn, and show in red in the layers table. Changing the cap restarts the app so it registers its layers again; the log says so. The `status` op reply includes the cap and how many layers are over it. The cap is per connection: an app that opens a second socket gets another 8 (hud.js `"conn"`), and the layers table shows each layer as connection:ref.
 
 **Slow pixels:** `BENCH_STALL_MS=7000` makes every image layer report `stalled` (cluster-render's state until its first pixels are uploaded) for that long, then `shown`. Under 5 s the apps log nothing; past it they warn once per layer and log when it shows.
@@ -56,3 +67,13 @@ The page draws whichever target the app's `app.json` `config.target` names. One 
 ```
 
 (800x480 for the HUD.) `?dbg=1` shows whether it worked: `images N px N` means every image layer's pixels arrived.
+
+**Faces in the picker:** `t_val`/`t_unit` (the TPMS block's own faces, now Eurostile LT Std Demi and Microgramma D
+Bold Extended) plus a size ladder (44/56/70/88 px) baked for every other `.ttf` in `tools/fonts-src/` - that is
+where `eurostile*.ttf` and `microgramma-*.ttf` came from, so dropping another face in and re-running
+`python tools/bake_fonts.py cluster_themes` is all it takes for it to appear here.
+
+**Size is a free number, not a ladder.** Each row is a family plus a px box. Apply looks for a face already baked at
+that family+size (`t_val` counts as `eurostile` 70); when none exists it calls `POST /bake {family, size}`, which runs
+`python tools/bake_fonts.py <app> --face <family>_<px>` and lands a new atlas in the app's `hud/fonts/`. Baking takes
+about a second, and the new atlas ships with the app until you delete it.

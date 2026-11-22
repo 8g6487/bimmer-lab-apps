@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 2,
+  "name": "TPMS car",
+  "theme": "mdash",
+  "_about": "Tyre pressures and temperatures the way BMW's own tyre readout draws them: a top view car (the bitmap from the reference photo, hud/sprites/car-top.json) nose up in the middle, the fronts above the rears either side of it, the pressure over the temperature at each corner, the wheel and the units as the heading, thin rules between the pairs and above and below the car, and the four tyres lit by their pressure band (green / amber / red). The values come from the car's tyre sensors ({{tyreP:FL}} .. {{tyreT:RR}}); the heading follows the units setting.",
+  "widgets": [
+    {
+      "id": "bg",
+      "type": "fill",
+      "z": 0,
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 660,
+      "color": [
+        6,
+        8,
+        11,
+        255
+      ]
+    },
+    {
+      "id": "rules-h-left",
+      "type": "fill",
+      "z": 1,
+      "x": 786,
+      "y": 394,
+      "w": 142,
+      "h": 2,
+      "color": [
+        108,
+        116,
+        128,
+        255
+      ]
+    },
+    {
+      "id": "rules-h-right",
+      "type": "fill",
+      "z": 1,
+      "x": 993,
+      "y": 394,
+      "w": 141,
+      "h": 2,
+      "color": [
+        108,
+        116,
+        128,
+        255
+      ]
+    },
+    {
+      "id": "rules-v-top",
+      "type": "fill",
+      "z": 1,
+      "x": 959,
+      "y": 194,
+      "w": 2,
+      "h": 143,
+      "color": [
+        108,
+        116,
+        128,
+        255
+      ]
+    },
+    {
+      "id": "rules-v-bottom",
+      "type": "fill",
+      "z": 1,
+      "x": 959,
+      "y": 454,
+      "w": 2,
+      "h": 117,
+      "color": [
+        108,
+        116,
+        128,
+        255
+      ]
+    },
+    {
+      "id": "car",
+      "type": "sprite",
+      "name": "car-photo",
+      "z": 2,
+      "x": 934,
+      "y": 345,
+      "w": 53,
+      "h": 101
+    },
+    {
+      "id": "head",
+      "type": "sprite",
+      "name": "wheel",
+      "z": 4,
+      "color": [
+        150,
+        158,
+        170,
+        255
+      ],
+      "x": 884,
+      "y": 89,
+      "w": 48,
+      "h": 48
+    },
+    {
+      "id": "unit-pressure",
+      "type": "text",
+      "z": 4,
+      "x": 950,
+      "y": 88,
+      "w": 140,
+      "h": 50,
+      "text": "{{u:pressure}}",
+      "font": "t_unit",
+      "align": "left",
+      "color": [
+        150,
+        158,
+        170,
+        255
+      ]
+    },
+    {
+      "id": "unit-temp",
+      "type": "text",
+      "z": 4,
+      "x": 950,
+      "y": 144,
+      "w": 140,
+      "h": 50,
+      "text": "{{u:temp}}",
+      "font": "t_unit",
+      "align": "left",
+      "color": [
+        150,
+        158,
+        170,
+        255
+      ]
+    },
+    {
+      "id": "tyre-fl",
+      "type": "sprite",
+      "name": "tyre",
+      "z": 3,
+      "x": 936,
+      "y": 366,
+      "w": 9,
+      "h": 19,
+      "grade": "tyre",
+      "corner": "FL"
+    },
+    {
+      "id": "tyre-fr",
+      "type": "sprite",
+      "name": "tyre",
+      "z": 3,
+      "x": 976,
+      "y": 366,
+      "w": 9,
+      "h": 19,
+      "grade": "tyre",
+      "corner": "FR"
+    },
+    {
+      "id": "tyre-rl",
+      "type": "sprite",
+      "name": "tyre",
+      "z": 3,
+      "x": 936,
+      "y": 416,
+      "w": 9,
+      "h": 19,
+      "grade": "tyre",
+      "corner": "RL"
+    },
+    {
+      "id": "tyre-rr",
+      "type": "sprite",
+      "name": "tyre",
+      "z": 3,
+      "x": 976,
+      "y": 416,
+      "w": 9,
+      "h": 19,
+      "grade": "tyre",
+      "corner": "RR"
+    },
+    {
+      "id": "pfl",
+      "type": "text",
+      "z": 4,
+      "x": 764,
+      "y": 230,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreP:FL}}",
+      "font": "t_val",
+      "align": "right",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ],
+      "colorBy": "tyre",
+      "corner": "FL"
+    },
+    {
+      "id": "tfl",
+      "type": "text",
+      "z": 4,
+      "x": 764,
+      "y": 311,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreT:FL}}",
+      "font": "t_val",
+      "align": "right",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ]
+    },
+    {
+      "id": "prl",
+      "type": "text",
+      "z": 4,
+      "x": 764,
+      "y": 434,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreP:RL}}",
+      "font": "t_val",
+      "align": "right",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ],
+      "colorBy": "tyre",
+      "corner": "RL"
+    },
+    {
+      "id": "trl",
+      "type": "text",
+      "z": 4,
+      "x": 764,
+      "y": 515,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreT:RL}}",
+      "font": "t_val",
+      "align": "right",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ]
+    },
+    {
+      "id": "pfr",
+      "type": "text",
+      "z": 4,
+      "x": 1036,
+      "y": 230,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreP:FR}}",
+      "font": "t_val",
+      "align": "left",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ],
+      "colorBy": "tyre",
+      "corner": "FR"
+    },
+    {
+      "id": "tfr",
+      "type": "text",
+      "z": 4,
+      "x": 1036,
+      "y": 311,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreT:FR}}",
+      "font": "t_val",
+      "align": "left",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ]
+    },
+    {
+      "id": "prr",
+      "type": "text",
+      "z": 4,
+      "x": 1036,
+      "y": 434,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreP:RR}}",
+      "font": "t_val",
+      "align": "left",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ],
+      "colorBy": "tyre",
+      "corner": "RR"
+    },
+    {
+      "id": "trr",
+      "type": "text",
+      "z": 4,
+      "x": 1036,
+      "y": 515,
+      "w": 120,
+      "h": 56,
+      "text": "{{tyreT:RR}}",
+      "font": "t_val",
+      "align": "left",
+      "fit": [
+        "t_val",
+        "d7_val",
+        "m_val"
+      ],
+      "color": [
+        236,
+        240,
+        244,
+        255
+      ]
+    }
+  ]
+}

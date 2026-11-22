@@ -51,6 +51,17 @@
 </style>
 </head>
 <body>
+<style>
+#fontBox { position: relative; }
+#fontBox summary { cursor: pointer; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+#fontBox[open] { position: absolute; right: 12px; top: 48px; z-index: 50; background: #11161c; border: 1px solid var(--line); border-radius: 8px; padding: 10px; box-shadow: 0 8px 24px #000a; }
+#fontRows { display: grid; gap: 6px; margin: 8px 0; }
+.fontRow { display: grid; grid-template-columns: 90px 180px 80px; gap: 6px; align-items: center; font-size: 12px; }
+.fontRow input { background: #0d1117; color: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font: inherit; width: 64px; }
+.fontRow select { background: #0d1117; color: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font: inherit; }
+.fontName { opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fontBtns { display: flex; gap: 6px; }
+</style>
 <header>
   <h1 id="title">Bench</h1>
   <span id="appState" class="pill">app: ?</span>
@@ -58,6 +69,11 @@
   <span class="pill" id="target">target: ?</span>
   <span class="pill" id="pixels" title="cluster-render's pixel memory: 16 MiB for every image of every app together, each image counted twice">pixels: ?</span>
   <button id="restart">Restart app</button>
+  <details id="fontBox" title="Rewrites the layout's text widgets into bench/.data/&lt;app&gt;/layouts/, which the app watches and reloads — the same override path scripts/deploy.sh uses on the car.">
+    <summary>fonts</summary>
+    <div id="fontRows"></div>
+    <div class="fontBtns"><button id="fontApply">Apply font</button><button id="fontReset" title="Drop the override, back to the layout as built">Reset</button></div>
+  </details>
   <label class="chk" title="The car seems to draw only an app's first 8 layers. Layers past the cap get state waiting and are not drawn; 0 = unlimited. Changing it restarts the app."><span>layer cap</span> <input type="number" id="cap" min="0" max="64" step="1" value="0"></label>
 </header>
 <main>
@@ -503,6 +519,72 @@
   }
   function setSetting(key, value) { fetch('/setting', { method: 'POST', body: JSON.stringify({ key, value }) }); }
   document.getElementById('restart').onclick = () => fetch('/restart', { method: 'POST' });
+
+  /* font picker: one row per face the layout's text uses; the app watches <data>/layouts and reloads itself */
+  let fontInfo = null;
+  async function loadFonts() {
+    const host = document.getElementById('fontRows');
+    if (!host) return;
+    try { fontInfo = await (await fetch('/fonts', { cache: 'no-store' })).json(); } catch (e) { return; }
+    const fams = fontInfo.families || [];
+    const families = Array.from(new Set(
+      (fontInfo.fonts || []).map((f) => f.name.replace(/_[0-9]+$/, ''))
+        .concat((fontInfo.roles || []).map((r) => r.stem).filter(Boolean))
+    )).sort();
+    host.innerHTML = '';
+    (fontInfo.roles || []).forEach((r) => {
+      const row = document.createElement('div');
+      row.className = 'fontRow';
+      const faceSel = document.createElement('select');
+      faceSel.innerHTML = families.map((f) => '<option value="' + f + '">' + f + '</option>').join('');
+      faceSel.value = r.stem || r.family || r.font;
+      const sizeIn = document.createElement('input');
+      sizeIn.type = 'number'; sizeIn.min = 12; sizeIn.max = 160; sizeIn.step = 1;
+      sizeIn.value = r.size || r.cell || 44;
+      sizeIn.title = 'px — Apply bakes a new atlas if this size has never been baked';
+      const name = document.createElement('span');
+      name.className = 'fontName';
+      name.textContent = r.font + ' \u00d7' + r.count;
+      name.title = (r.sample || '') + ' \u2014 ' + (r.cell || '?') + 'px cell';
+      row.appendChild(name); row.appendChild(faceSel); row.appendChild(sizeIn);
+      row.dataset.key = r.key;
+      host.appendChild(row);
+    });
+    const a = document.getElementById('fontApply');
+    if (a && !a.dataset.on) {
+      a.dataset.on = '1';
+      a.onclick = async () => {
+        const roles = {};
+        for (const row of document.querySelectorAll('#fontRows .fontRow')) {
+          const fam = row.querySelector('select').value;
+          const px = Math.round(Number(row.querySelector('input').value) || 0);
+          if (!fam || !px) continue;
+          // a face already baked at that family+size wins, so asking for 70 keeps the layout's own t_val rather than
+          // a second identical atlas with a bigger cell
+          const hit = (fontInfo.fonts || []).find((f) => f.stem === fam && f.size === px);
+          const key = hit ? hit.name : fam + '_' + px;
+          if (!hit) {
+            const br = await fetch('/bake', { method: 'POST', body: JSON.stringify({ family: fam, size: px }) });
+            if (!br.ok) { a.textContent = 'bake failed'; setTimeout(() => { a.textContent = 'Apply font'; }, 1800); return; }
+          }
+          roles[row.dataset.key] = key;
+        }
+        const res = await fetch('/font', { method: 'POST', body: JSON.stringify({ roles }) });
+        a.textContent = res.ok ? 'Applied' : 'failed';
+        setTimeout(() => { a.textContent = 'Apply font'; }, 1200);
+        if (res.ok) loadFonts();
+      };
+    }
+    const rst = document.getElementById('fontReset');
+    if (rst && !rst.dataset.on) {
+      rst.dataset.on = '1';
+      rst.onclick = async () => { await fetch('/font', { method: 'POST', body: JSON.stringify({ reset: true }) }); loadFonts(); };
+    }
+  }
+  loadFonts();
+  if (location.hash === '#fonts') { const fb = document.getElementById('fontBox'); if (fb) fb.open = true; }
+  document.getElementById('restart').addEventListener('click', () => setTimeout(loadFonts, 1500));
+
 })();
 </script>
 </body>

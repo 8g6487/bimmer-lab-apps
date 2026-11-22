@@ -56,7 +56,9 @@ function pixelBytes() { let n = 0; layers.forEach((l) => { if (l.image) n += l.i
 function layerCount() { let n = 0; layers.forEach((l) => { if (l.kind !== 'asset') n++; }); return n; }
 const TOTAL_ASSETS = 32, ASSETS_PER_CLIENT = 16;   // CompositorLimits assets / assets_per_client
 const mib = (b) => (b / 1048576).toFixed(1) + ' MiB';
-const SOCK = path.join(os.tmpdir(), 'hud-bench-' + process.pid + '.sock');
+const SOCK = process.platform === 'win32'
+    ? '\\\\.\\pipe\\hud-bench-' + process.pid          // Windows: a named pipe (AF_UNIX paths give EACCES)
+    : path.join(os.tmpdir(), 'hud-bench-' + process.pid + '.sock');
 const ROOT = path.join(__dirname, '..');
 const APP_ID = process.argv[2] || process.env.BENCH_APP || 'idrive_hud_widgets';
 const APP_DIR = path.join(ROOT, 'apps', APP_ID);
@@ -452,6 +454,93 @@ function restartApp(why) {
 let lastSettings = null;
 let lastStatus = null;
 
+/* ---------- fonts: swap a layout's faces without touching the app ----------
+ * The app watches <data>/layouts and rebuilds the layout when a file lands there, which is the same
+ * override path scripts/deploy.sh uses on the car. So the bench only has to write the override.
+ */
+function currentLayoutName() {
+    try {
+        const st = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'settings.json'), 'utf8'));
+        if (st && typeof st.hudLayout === 'string' && st.hudLayout) return st.hudLayout;
+    } catch (e) { /* no settings yet */ }
+    try {
+        const names = fs.readdirSync(path.join(APP_DIR, 'hud', 'layouts')).filter((f) => /\.json$/.test(f) && !/-/.test(f));
+        if (names.length === 1) return names[0].replace(/\.json$/, '');
+    } catch (e) { /* no layouts */ }
+    return null;
+}
+
+function readLayout(name) {
+    const override = path.join(DATA_DIR, 'layouts', name + '.json');
+    const built = path.join(APP_DIR, 'hud', 'layouts', name + '.json');
+    const file = fs.existsSync(override) ? override : built;
+    if (!fs.existsSync(file)) return null;
+    return { file: file, data: JSON.parse(fs.readFileSync(file, 'utf8')) };
+}
+
+function fontFiles() {
+    const dir = path.join(APP_DIR, 'hud', 'fonts');
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter((f) => /\.json$/.test(f)).map((f) => {
+        let d = {};
+        try { d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { d = {}; }
+        const stem = d.source ? path.basename(d.source, path.extname(d.source)).toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+        return { name: f.replace(/\.json$/, ''), cell: d.cellHeight || null, size: d.size || null, stem: stem };
+    }).sort((a, b) => (a.cell || 0) - (b.cell || 0));
+}
+
+function fontMetrics(name) {
+    try {
+        const d = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'hud', 'fonts', name + '.json'), 'utf8'));
+        const g = d.glyphs && (d.glyphs['8'] || d.glyphs['0']);
+        const src = d.source ? path.basename(d.source, path.extname(d.source)).toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+        return { cell: d.cellHeight || null, adv: g ? g.advance : null, size: d.size || null, stem: src };
+    } catch (e) { return { cell: null, adv: null, size: null, stem: null }; }
+}
+
+function layoutFonts(data) {
+    const out = { value: null, head: null };
+    (data.widgets || []).forEach((w) => {
+        if (w.type !== 'text' || !w.font) return;
+        const slot = /\{\{u:/.test(String(w.text || '')) ? 'head' : 'value';
+        if (!out[slot]) out[slot] = w.font;
+    });
+    return out;
+}
+
+/** family name and ladder size of a face: `euro_56` -> `euro`, 56. */
+function fontFamily(name) { return /_[0-9]+$/.test(name) ? name.replace(/_[0-9]+$/, '') : name; }
+function fontSize(name) { const m = /_([0-9]+)$/.exec(name); return m ? Number(m[1]) : null; }
+
+/** The layout's text widgets grouped by the face they are drawn with: one row per face the picker can change. */
+function layoutRoles(data) {
+    const by = new Map();
+    (data.widgets || []).forEach((w) => {
+        if (w.type !== 'text' || !w.font) return;
+        if (!by.has(w.font)) by.set(w.font, { font: w.font, count: 0, sample: String(w.text || '') });
+        const r = by.get(w.font);
+        r.count++;
+    });
+    return Array.from(by.values()).map((r, i) => ({
+        key: i, font: r.font, count: r.count, sample: r.sample,
+        cell: fontMetrics(r.font).cell, family: fontFamily(r.font), size: fontMetrics(r.font).size || fontSize(r.font),
+        stem: fontMetrics(r.font).stem
+    }));
+}
+
+/** family -> every ladder baked for it (only faces that carry a size suffix have more than one). */
+function fontFamilies() {
+    const by = new Map();
+    fontFiles().forEach((f) => {
+        const fam = fontFamily(f.name);
+        if (!by.has(fam)) by.set(fam, []);
+        by.get(fam).push({ font: f.name, size: fontSize(f.name), cell: f.cell });
+    });
+    return Array.from(by.entries())
+        .map(([fam, sizes]) => ({ key: fam, sizes: sizes.filter((x) => x.size !== null).sort((a, b) => a.size - b.size) }))
+        .filter((f) => f.sizes.length > 1);
+}
+
 /* ---------- HTTP ---------- */
 
 function body(req) {
@@ -541,6 +630,97 @@ const web = http.createServer(async (req, res) => {
             restartApp('layer cap set to ' + (n || 'unlimited') + ', the app registers its layers again');
         }
         res.writeHead(204); return res.end();
+    }
+    if (req.method === 'GET' && url === '/fonts') {
+        const name = currentLayoutName();
+        const lay = name ? readLayout(name) : null;
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({
+            layout: name,
+            used: lay ? layoutFonts(lay.data) : { value: null, head: null },
+            roles: lay ? layoutRoles(lay.data) : [],   // the effective layout, so the picker shows what is on screen
+            families: fontFamilies(),
+            overridden: !!lay && lay.file.indexOf(DATA_DIR) === 0,
+            fonts: fontFiles()
+        }));
+    }
+    if (req.method === 'POST' && url === '/font') {
+        // {roles: {"0": "euro_70", ...}} rewrites the faces of the layout's text groups. Indices are positions in
+        // /fonts roles and are recomputed against the BUILT layout every time, so repeated applies never compound.
+        // {reset:true} drops the override. {value, head} stays as the old two-slot shortcut.
+        const b = await body(req);
+        const name = b.layout || currentLayoutName();
+        if (!name) { res.writeHead(409); return res.end('no layout'); }
+        const built = path.join(APP_DIR, 'hud', 'layouts', name + '.json');
+        if (!fs.existsSync(built)) { res.writeHead(404); return res.end('no layout ' + name); }
+        const override = path.join(DATA_DIR, 'layouts', name + '.json');
+        // apply on top of what is on screen, not on the shipped layout: two rows would otherwise reset each other
+        const eff = readLayout(name);
+        const base = eff ? JSON.parse(JSON.stringify(eff.data)) : JSON.parse(fs.readFileSync(built, 'utf8'));
+        if (b.reset) {
+            try { fs.unlinkSync(override); } catch (e) { /* was not overridden */ }
+            log('info', 'bench: font override dropped for ' + name);
+            res.writeHead(200, { 'content-type': 'application/json' });
+            return res.end(JSON.stringify({ layout: name, reset: true }));
+        }
+        const roles = layoutRoles(base);
+        const want = {};
+        if (b.roles && typeof b.roles === 'object') {
+            Object.keys(b.roles).forEach((k) => {
+                const r = roles[Number(k)];
+                if (r && b.roles[k] && b.roles[k] !== r.font) want[r.font] = b.roles[k];
+            });
+        }
+        if (b.value && roles[0]) want[roles[0].font] = b.value;
+        if (b.head && roles.length) want[roles[roles.length - 1].font] = b.head;
+
+        const out = JSON.parse(JSON.stringify(base));
+        let n = 0;
+        (out.widgets || []).forEach((w) => {
+            if (w.type !== 'text' || !w.font || !want[w.font]) return;
+            const to = want[w.font];
+            const a = fontMetrics(w.font), z = fontMetrics(to);
+            if (a.cell && z.cell) {
+                const cy = w.y + w.h / 2;
+                w.h = Math.max(1, Math.round(w.h * z.cell / a.cell));
+                w.y = Math.round(cy - w.h / 2);
+            }
+            if (a.adv && z.adv && a.adv !== z.adv) {
+                const cx = w.x + w.w / 2;
+                w.w = Math.max(1, Math.round(w.w * z.adv / a.adv));
+                w.x = Math.round(cx - w.w / 2);
+            }
+            w.font = to;
+            n++;
+        });
+        fs.mkdirSync(path.dirname(override), { recursive: true });
+        fs.writeFileSync(override, JSON.stringify(out, null, 2));
+        log('info', 'bench: font override ' + JSON.stringify(want) + ' -> ' + path.basename(override) + ' (' + n + ' text widgets)');
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ layout: name, changed: n, roles: want }));
+    }
+    if (req.method === 'POST' && url === '/bake') {
+        // {family, size} bakes one atlas at any px, so the picker's size box is not limited to the shipped ladder.
+        const b = await body(req);
+        const fam = String(b.family || '').replace(/[^a-z0-9]/gi, '');
+        const px = Math.round(Number(b.size) || 0);
+        if (!fam || px < 12 || px > 160) { res.writeHead(400); return res.end('family and size 12-160'); }
+        const key = fam + '_' + px;
+        const script = path.join(ROOT, 'tools', 'bake_fonts.py');
+        let err = null;
+        for (const py of [process.env.PYTHON, 'python3', 'python']) {
+            if (!py) continue;
+            try { execFileSync(py, [script, APP_ID, '--face', key], { cwd: ROOT, stdio: 'pipe' }); err = null; break; }
+            catch (e) { err = e; }
+        }
+        const out = path.join(APP_DIR, 'hud', 'fonts', key + '.json');
+        if (err || !fs.existsSync(out)) {
+            res.writeHead(500);
+            return res.end('bake failed: ' + String((err && (err.stderr || err.message)) || 'no atlas'));
+        }
+        log('info', 'bench: baked ' + key);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ font: key }));
     }
     if (req.method === 'POST' && url === '/setting') {
         // Pressed on the stub's RHMI components, as the car's settings page sends it (run-app.js).
