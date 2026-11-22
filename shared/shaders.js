@@ -608,13 +608,24 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
         float f = clamp(dOut / max(dOut + max(dIn, 0.0), 1.0), 0.0, 1.0);        // 0 at the outer edge, 1 at the inner
         float yv = zones > 0.5 ? mix(97.0, 7.0, v) : mix(100.0, 2.0, v);
         float lit = clamp((q.y - yv) * k + 0.5, 0.0, 1.0);                        // below the level line
-        vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
-        vec4 bright = vec4(mix(vec3(0.96, 0.97, 0.99), vec3(0.55, 0.57, 0.63), f), mix(1.0, 0.55, f));
-        vec4 glass = mix(dark, bright, lit);
         float a = cov(-inside * k);
-        c = over(vec4(glass.rgb, glass.a * a), c);
-        c = over(vec4(0.85, 0.87, 0.92, 0.45 * cov(abs(inside * k) - 0.6) * (1.0 - lit)), c);   // the unlit glass's outline
-        c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 1.2)), c);                              // the level, inside the glass only
+        if (u_style > 0.5) {
+            // the M3's gauge: a thin outlined cell, dark inside, a light tank below the level and a thick red
+            // bar sitting on the level itself (the M8's is a glowing glass with a hairline level line).
+            c = over(vec4(0.045, 0.05, 0.06, 0.90 * a), c);
+            float gt = clamp((q.y - yv) * k * 0.30 + 0.72, 0.0, 1.0);         // 1 at the level, darker downward
+            vec3 tank = mix(vec3(0.26, 0.28, 0.31), vec3(0.86, 0.88, 0.90), gt);
+            c = over(vec4(tank, 0.92 * a * lit), c);
+            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 4.2)), c);
+            c = over(vec4(0.86, 0.89, 0.93, 0.95 * cov(abs(inside) * k - 1.0)), c);
+        } else {
+            vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
+            vec4 bright = vec4(mix(vec3(0.96, 0.97, 0.99), vec3(0.55, 0.57, 0.63), f), mix(1.0, 0.55, f));
+            vec4 glass = mix(dark, bright, lit);
+            c = over(vec4(glass.rgb, glass.a * a), c);
+            c = over(vec4(0.85, 0.87, 0.92, 0.45 * cov(abs(inside * k) - 0.6) * (1.0 - lit)), c);
+            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 1.2)), c);
+        }
     }
     return c;
 }
@@ -727,8 +738,14 @@ void main() {
         g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
         // the marker: a red block at the rpm with a glow either side of it
         float dm = abs(p.y - yn);
-        g = over(vec4(u_red, 0.5 * exp(-dm / 26.0)), g);
-        g = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.35 * cov(dm - 5.0)), cov(dm - 14.0)), g);
+        if (u_style > 0.5) {
+            // the M3 marks the needle with a hairline and a small tip, not the M8's glowing red block
+            g = over(vec4(0.97, 0.98, 1.0, cov(dm - 1.3)), g);
+            g = over(vec4(0.97, 0.98, 1.0, cov(abs(dm - 4.5) - 2.2) * clamp(10.0 - d, 0.0, 1.0)), g);
+        } else {
+            g = over(vec4(u_red, 0.5 * exp(-dm / 26.0)), g);
+            g = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.35 * cov(dm - 5.0)), cov(dm - 14.0)), g);
+        }
         c = vec4(g.rgb, g.a * inBand);
         c = over(vec4(0.93, 0.95, 0.98, cov(abs(d) - 1.6)), c);               // outer edge
         c = over(vec4(1.0, 1.0, 1.0, 0.3 * cov(abs(d - 4.0) - 0.6)), c);       // its bevel

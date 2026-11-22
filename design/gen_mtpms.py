@@ -75,7 +75,7 @@ def main():
     # pair_h + pair_gap.
     # The car must stay near the size it is in the TPMS theme (53x101) — it is a 46x89 photo sprite, so
     # anything much larger smears. 1.19x still keeps the two axles far enough apart for the pairs.
-    car_len = 92
+    car_len = 84
     car_w = max(8, round(car_len * 53 / 101))
     block_w = 2 * col_w + 2 * gap + car_w
     tail = round(0.58 * p)                     # room under the car for the bottom of the cross
