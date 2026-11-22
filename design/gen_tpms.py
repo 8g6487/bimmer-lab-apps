@@ -84,7 +84,7 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     car_x = round(CX - car_w / 2)
 
     rows = [0, pitch, round(2.52 * pitch), round(3.52 * pitch)]
-    gap = round(0.60 * pitch)                  # white between the numbers and the car
+    gap = round(0.52 * pitch)                  # white between the numbers and the car
     hcell, _ = metrics(heading_font)
 
     # the heading: the wheel, then psi over °C on two lines, as BMW stacks them. Both boxes are placed by
@@ -121,9 +121,9 @@ def build(font, height, heading_font, pitch_ratio=1.45, gap_ratio=0.34):
     box_w, box_h = 0.261, 0.239            # the photo's tyre well, mirrored to the four corners
     dot_w = round(box_w * car_w * 0.62)
     dot_h = round(box_h * car_len * 0.78)
-    out = (dot_w - box_w * car_w) / 2      # how far a capsule reaches outside the body
-    clear = 8
-    stop_l = round(car_x - out - clear)    # where the rule has to stop: outside the tyres, not the body
+    out = max(0.0, (dot_w - box_w * car_w) / 2)   # how far a capsule reaches outside the body
+    clear = round(0.36 * pitch)                   # the photo keeps ~0.38 pitch between rule and car
+    stop_l = round(car_x - out - clear)           # stop outside the tyres, and with the photo's gap
     stop_r = round(car_x + car_w + out + clear)
 
     widgets = [

@@ -493,8 +493,12 @@ function fontMetrics(name) {
     try {
         const d = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'hud', 'fonts', name + '.json'), 'utf8'));
         const g = d.glyphs && (d.glyphs['8'] || d.glyphs['0']);
+        // The baked cell differs between the theme's own faces and the ladder bakes, so scale by what the eye sees:
+        // the tallest digit's ink, with the cell only as a fallback.
+        let ink = 0;
+        if (d.glyphs) for (let i = 0; i <= 9; i++) { const q = d.glyphs[String(i)]; if (q && q.h > ink) ink = q.h; }
         const src = d.source ? path.basename(d.source, path.extname(d.source)).toLowerCase().replace(/[^a-z0-9]/g, '') : null;
-        return { cell: d.cellHeight || null, adv: g ? g.advance : null, size: d.size || null, stem: src };
+        return { cell: d.cellHeight || null, adv: g ? g.advance : null, ink: ink || null, size: d.size || null, stem: src };
     } catch (e) { return { cell: null, adv: null, size: null, stem: null }; }
 }
 
@@ -675,21 +679,23 @@ const web = http.createServer(async (req, res) => {
         if (b.head && roles.length) want[roles[roles.length - 1].font] = b.head;
 
         const out = JSON.parse(JSON.stringify(base));
+        // a smaller face must also pull the rows in: the layout spaces them by a multiple of the digit cell, so an
+        // override that only shrinks the boxes leaves the original gaps and the two rows drift apart
+        const car = (out.widgets || []).find((x) => x.id === 'car' || (x.type === 'sprite' && x.name === 'car-photo'));
+        const anchorY = car ? car.y + car.h / 2 : Math.round((out.h || 660) / 2);
+        const anchorX = Math.round((out.w || 1920) / 2);
         let n = 0;
         (out.widgets || []).forEach((w) => {
             if (w.type !== 'text' || !w.font || !want[w.font]) return;
             const to = want[w.font];
             const a = fontMetrics(w.font), z = fontMetrics(to);
-            if (a.cell && z.cell) {
-                const cy = w.y + w.h / 2;
-                w.h = Math.max(1, Math.round(w.h * z.cell / a.cell));
-                w.y = Math.round(cy - w.h / 2);
-            }
-            if (a.adv && z.adv && a.adv !== z.adv) {
-                const cx = w.x + w.w / 2;
-                w.w = Math.max(1, Math.round(w.w * z.adv / a.adv));
-                w.x = Math.round(cx - w.w / 2);
-            }
+            const rY = a.ink && z.ink ? z.ink / a.ink : (a.cell && z.cell ? z.cell / a.cell : 1);
+            const rX = a.adv && z.adv ? z.adv / a.adv : rY;
+            const cy = w.y + w.h / 2, cx = w.x + w.w / 2;
+            w.h = Math.max(1, Math.round(w.h * rY));
+            w.w = Math.max(1, Math.round(w.w * rX));
+            w.y = Math.round(anchorY + (cy - anchorY) * rY - w.h / 2);
+            w.x = Math.round(anchorX + (cx - anchorX) * rX - w.w / 2);
             w.font = to;
             n++;
         });

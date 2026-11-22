@@ -1,0 +1,2 @@
+@echo off
+"C:\Users\admin\AppData\Local\Programs\Python\Python311\python.exe" %*

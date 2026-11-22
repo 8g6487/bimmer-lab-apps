@@ -77,3 +77,9 @@ where `eurostile*.ttf` and `microgramma-*.ttf` came from, so dropping another fa
 that family+size (`t_val` counts as `eurostile` 70); when none exists it calls `POST /bake {family, size}`, which runs
 `python tools/bake_fonts.py <app> --face <family>_<px>` and lands a new atlas in the app's `hud/fonts/`. Baking takes
 about a second, and the new atlas ships with the app until you delete it.
+
+**Row spacing follows the digit ink.** The override rescales each text box *and* its position around the car's
+centre, so a smaller face keeps the block's proportions instead of leaving the rows where the built layout put
+them. The ratio is the tallest digit's ink height (`fontMetrics().ink`), not `cellHeight`: the theme's own bakes
+and the 44/56/70/88 ladder bakes pad the cell differently (`t_val` is a 70 px face in a 56 px cell, while
+`eurostile_56` is 56 px in a 60 px cell), so a cell ratio would spread the rows apart for a smaller face.
