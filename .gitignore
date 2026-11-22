@@ -8,3 +8,6 @@ preview/
 __pycache__/
 # agent worktrees and local tool state
 .claude/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
