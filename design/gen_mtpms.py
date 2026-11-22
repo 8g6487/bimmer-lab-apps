@@ -54,38 +54,48 @@ def main():
     d = json.load(open(SRC, encoding='utf-8'))
     digits, unit = atlas(DIGIT), atlas(UNIT)
     d_cell = digits['cellHeight']
-    p = round(d_cell * 1.45)                     # row pitch
+    p = round(d_cell * 1.45)                     # row pitch of one reading
     adv = advance(digits, '88') / 2              # one digit
-    rows = [0, p, round(2.52 * p), round(3.52 * p)]
-    car_len = round(1.70 * p)
-    car_w = max(8, round(car_len * 53 / 101))
+    pair_h = round(1.18 * d_cell) + d_cell       # the temperature line sits below the pressure one
+    pair_gap = round(0.30 * d_cell)              # air between the two axles' pairs
+    col_w = 2 * adv + round(0.40 * d_cell)
     gap = round(0.52 * p)
     clear = round(0.30 * p)
-    col_w = 2 * adv + round(0.40 * d_cell)
-    block_w = 2 * col_w + 2 * gap + car_w
     head_w = round(d_cell * 0.95)
     u_top, u_bot = ink(unit, 'psi')
     t_top, t_bot = ink(unit, 'C')
     cell_u = unit['cellHeight']
     head_h = (u_bot + 6 - t_top) + cell_u        # psi box, then the °C box underneath
     head_gap = round(0.45 * p)
-    block_h = head_h + head_gap + rows[3] + d_cell
 
     x, y, bw, bh = BOX
+    # The car has to be long enough to hold the two axles apart: each corner's pair is centred on its
+    # wheel, and the pairs must not touch, so the axle spacing (0.5 * car_len) has to exceed
+    # pair_h + pair_gap.
+    car_len = max(2 * (pair_h + pair_gap), round(2.13 * p))
+    car_w = max(8, round(car_len * 53 / 101))
+    block_w = 2 * col_w + 2 * gap + car_w
+    block_h = head_h + head_gap + car_len
+
     left = x + (bw - block_w) // 2
     top = y + (bh - block_h) // 2
     cx = left + block_w // 2
     car_x = cx - car_w // 2
-    r1 = top + head_h + head_gap
-    rule_y = round(r1 + (rows[1] + rows[2]) / 2 + d_cell / 2)
-    car_top = rule_y - car_len // 2
+    car_top = top + head_h + head_gap
+    r1 = car_top
+    axle_box = {'FL': 0.182, 'FR': 0.182, 'RL': 0.682, 'RR': 0.682}
+    tyre_w = max(5, round(0.19 * car_w))
+    tyre_h = round(tyre_w * 2.3)
+    axle_y = {c: round(car_top + f * car_len) + tyre_h / 2 for c, f in axle_box.items()}
+    pair_top = {c: round(axle_y[c] - pair_h / 2) for c in axle_box}
+    rule_y = round((axle_y['FL'] + axle_y['RL']) / 2)
     ink_l = left
     col_l = left + col_w
     col_r = left + col_w + gap + car_w + gap
     ink_r = left + block_w
     head_top = top
-    v_top = r1 + round(0.04 * d_cell)
-    v_bottom = r1 + rows[3] + round(0.95 * d_cell)
+    v_top = pair_top['FL'] - 3
+    v_bottom = pair_top['RL'] + pair_h + 3
     stop_l = car_x - clear
     stop_r = car_x + car_w + clear
     axis = car_x + (car_w - 1) // 2
@@ -96,10 +106,11 @@ def main():
     w.append({'id': 'tp-rules-h-right', 'type': 'fill', 'z': 2,
               'x': stop_r, 'y': rule_y, 'w': ink_r - stop_r, 'h': 2, 'color': LINE})
     w.append({'id': 'tp-rules-v-top', 'type': 'fill', 'z': 2,
-              'x': axis, 'y': v_top, 'w': 2, 'h': car_top - clear - v_top, 'color': LINE})
+              'x': axis, 'y': head_top + head_h + 4, 'w': 2,
+              'h': max(2, v_top - (head_top + head_h + 4)), 'color': LINE})
     w.append({'id': 'tp-rules-v-bottom', 'type': 'fill', 'z': 2,
-              'x': axis, 'y': car_top + car_len + clear, 'w': 2,
-              'h': v_bottom - (car_top + car_len + clear), 'color': LINE})
+              'x': axis, 'y': v_bottom, 'w': 2,
+              'h': max(2, car_top + car_len - v_bottom), 'color': LINE})
     w.append({'id': 'tp-car', 'type': 'sprite', 'name': 'car-photo', 'z': 3,
               'x': car_x, 'y': car_top, 'w': car_w, 'h': car_len})
 
@@ -129,6 +140,7 @@ def main():
                   'x': round(car_x + bx * car_w), 'y': round(car_top + by * car_len),
                   'w': tyre_w, 'h': tyre_h, 'grade': 'tyre', 'corner': corner})
 
+    axle_box = {'FL': box_y, 'FR': box_y, 'RL': 0.682, 'RR': 0.682}
     for corner, side, row in (('FL', 'l', 0), ('FR', 'r', 0),
                               ('RL', 'l', 2), ('RR', 'r', 2)):
         for kind, off, font_id, colour, extra in (
@@ -140,7 +152,7 @@ def main():
                 wx = col_r
             align = 'left'
             box = {'id': 'tp-%s%s' % (kind.lower(), corner.lower()), 'type': 'text', 'z': 5,
-                   'x': wx, 'y': r1 + rows[row] + off, 'w': col_w, 'h': round(1.25 * d_cell),
+                   'x': wx, 'y': pair_top[corner] + off, 'w': col_w, 'h': round(1.25 * d_cell),
                    'text': '{{tyre%s:%s}}' % (kind, corner), 'font': font_id,
                    'align': align, 'color': colour}
             box.update(extra)
