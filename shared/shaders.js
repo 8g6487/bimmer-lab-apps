@@ -645,6 +645,13 @@ void main() {
         float l = segD(p, u_line.xy + vec2(6.0, 0.0), u_line.xy + vec2(u_line.w, 0.0)) - 2.0 - 1.2 * clamp((p.x - u_line.x) / u_line.w, 0.0, 1.0);
         float r = segD(p, u_line.zy - vec2(u_line.w, 0.0), u_line.zy - vec2(6.0, 0.0)) - 2.0 - 1.2 * clamp((u_line.z - p.x) / u_line.w, 0.0, 1.0);
         c = over(vec4(0.95, 0.96, 0.98, cov(min(l, r))), c);
+        if (u_style > 0.5) {
+            // slanted slabs instead of round caps, with a thin stroke just outside each one
+            float sl = max(abs(p.y - u_line.y) - 5.0, abs(p.x - (u_line.x + 4.0 + (p.y - u_line.y) * 0.9)) - 11.0);
+            float sr = max(abs(p.y - u_line.y) - 5.0, abs(p.x - (u_line.z - 4.0 - (p.y - u_line.y) * 0.9)) - 11.0);
+            c = over(vec4(0.02, 0.02, 0.03, cov(sl) + cov(sr)), c);
+            c = over(vec4(0.95, 0.96, 0.98, cov(sl + 3.0) + cov(sr + 3.0)), c);
+        }
     }
 
     c = tyreBlock(p, c);
@@ -731,7 +738,7 @@ void main() {
         float across = clamp(d / w, 0.0, 1.0);
         float yn = y0 - u_value * (y0 - y8);
         vec4 g = vec4(0.62, 0.67, 0.74, mix(0.42, 0.06, across));          // empty glass (bright at the outer edge, as the M8's)
-        if (u_style > 0.5) g = vec4(0.66, 0.71, 0.78, mix(0.62, 0.20, across));   // the M3's silver glass
+        if (u_style > 0.5) g = vec4(vec3(mix(0.155, 0.085, across)), mix(0.90, 0.94, across));   // the M3's near-black glass
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
         if (p.y > y0 - 20.0) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
@@ -762,11 +769,18 @@ void main() {
     // red zone, so both live behind u_style and the M8's bar is unchanged.
     float kk = floor(t * u_ticks + 0.5);
     float yk = y0 - kk / u_ticks * (y0 - y8);
-    float major = u_style > 0.5 ? 1.0 - mod(kk, 2.0) : 1.0;
-    float tickLen = u_style > 0.5 ? mix(10.0, 24.0, major) : 24.0;
-    if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < tickLen) {
-        float ty = abs(p.y - yk) - 1.5;
-        c = over(vec4(0.93, 0.95, 0.98, cov(ty)), c);
+    if (u_style > 0.5) {
+        // the M3's marks: a short bright bar inside the edge, long on every 2000 rpm
+        float major = 1.0 - mod(kk, 2.0);
+        if (kk >= 0.0 && kk <= u_ticks) {
+            float wid = mix(1.2, 1.8, major);
+            float reach = mix(12.0, 18.0, major);
+            float ty = abs(p.y - yk) - wid;
+            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d + 0.5, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
+        }
+    } else if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < 24.0) {
+        float ty8 = abs(p.y - yk) - 1.5;
+        c = over(vec4(0.93, 0.95, 0.98, cov(ty8)), c);
     }
     if (u_style > 0.5) {
         // the red zone: 45 degree hatch running out from the outer edge, in place of the solid block

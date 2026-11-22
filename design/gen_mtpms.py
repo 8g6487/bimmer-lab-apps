@@ -199,21 +199,25 @@ def main():
         if x['type'] == 'mdash':
             x['style'] = 'm3'                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
-            # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
-            # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.
+            # Scale 0..8 like the reference, red zone from the 7000 mark: _redMarks() takes
+            # min(redline, max-500)/max = 7000/8000 = 0.875, so only the last eighth is red.
+            x['max'] = 8000
             x['wTop'] = 8
             x['wBot'] = 15                       # a narrow ribbon, as the reference's, not the M's fat wedge
             x['style'] = 'm3'                      # two tick lengths and a hatched red zone
         elif x['id'].startswith(('nl', 'nr', 'mnl', 'mnr')):
             x['h'] = 42
-            if x.get('text') == '8':
-                x['text'] = '7'      # the car redlines at 7000, so nothing above 7 is drawn
+            # the scale still ends at 8; the red zone starts at the 7000 mark      # the car redlines at 7000, so nothing above 7 is drawn
 
     drop = ('ico_', 'setup_', 'mico_', 'msetup_')
     d['widgets'] = [x for x in d['widgets'] if not x['id'].startswith(drop)]
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x.pop('segbars', None)          # the bars live on the widget itself, not in params
+    for x in d['widgets']:
+        f = x.get('font')
+        if f in ('m_num', 'm_speed', 'm_gear'):
+            x['font'] = f + '_mf'          # this theme's numerals are microgrammafull
     d['widgets'] = d['widgets'] + w
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump(d, f, ensure_ascii=False, separators=(',', ':'))

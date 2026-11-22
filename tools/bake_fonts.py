@@ -65,6 +65,11 @@ CLUSTER_FONTS = [
     ('badge', 'BarlowCondensed-SemiBold.ttf', 30, UPPER + LOWER + DIGITS + ' -'),   # the model badge (shared/badges.js)
     # M: the wide squared numbers (Michroma, SIL OFL) and Barlow for the small print
     ('m_num', 'Orbitron[wght].ttf', 36, DIGITS, 0, 'Black', {'0': 'O'}),
+    # the mtpms theme's numerals: microgrammafull at the same metrics as the M theme's, so only
+    # this theme's look changes -- m_num / m_speed / m_gear stay Orbitron for everyone else.
+    ('m_num_mf', 'microgramma-full.ttf', 36, DIGITS, 0, None, {'0': 'O'}),
+    ('m_speed_mf', 'microgramma-full.ttf', 78, DIGITS + '-', 3, None, {'0': 'O'}),
+    ('m_gear_mf', 'microgramma-full.ttf', 125, 'PRNDSM-' + DIGITS, 3, None, {'0': 'O'}),
     ('m_gear', 'Orbitron[wght].ttf', 125, 'PRNDSM-' + DIGITS, 3, 'Black', {'0': 'O'}),
     ('m_speed', 'Orbitron[wght].ttf', 78, DIGITS + '-', 3, 'Black', {'0': 'O'}),
     ('m_gl', 'Orbitron[wght].ttf', 25, DIGITS + '/.-', 0, 'Black', {'0': 'O'}),
