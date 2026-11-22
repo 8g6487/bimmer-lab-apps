@@ -2267,7 +2267,11 @@ class HudApp {
             x.gauges = [['u_gaugeL', L], ['u_gaugeR', R]];
             x.bars = bars;
         } else if (w.type === 'mtach') {
-            const max = w.max || 8000, [redFrom, orange] = this._redMarks(max);
+            const max = w.max || 8000, marks = this._redMarks(max);
+            // A layout may place the red band itself (`redFrom`, 0..1 along the dial), for dials whose
+            // scale does not follow the car's redline setting; otherwise the setting decides.
+            const redFrom = isNum(w.redFrom) ? w.redFrom : marks[0];
+            const orange = isNum(w.redFrom) ? w.redFrom - 700 / max : marks[1];
             const right = w.side === 'right';
             c.uniform(ref, 'u_size', [w.w, w.h]);
             c.uniform(ref, 'u_side', [right ? 1 : -1]);

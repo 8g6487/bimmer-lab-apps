@@ -163,6 +163,20 @@ def main():
                    'design/gen_mtpms.py from m.json; edit that script, not this file.')
     # The four setup rows live in two places: their own widgets, and the `segbars` inside the two mdash
     # backdrops. Both go, so the TPMS block needs no opaque backing to hide them.
+    # --- the factory M3 look -------------------------------------------------
+    # 1. The reference dial runs 0..8 x1000, so the shader's tick count (max / 1000) has to be 8,
+    #    and the numeral at the top tick is 8, not 7.
+    # 2. The reference band is a narrower ribbon than the M theme's wedge.
+    # 3. Its numerals are a little larger.
+    for x in d['widgets']:
+        if x['type'] == 'mtach':
+            # Ribbon only. `max` stays 7000: on this shader max also moves the red band, and 8000
+            # pushes it into the middle of the dial, so the 0..8 scale needs a shader pass first.
+            x['wTop'] = 12
+            x['wBot'] = 40
+        elif x['id'].startswith(('nl', 'nr', 'mnl', 'mnr')):
+            x['h'] = 42
+
     drop = ('ico_', 'setup_', 'mico_', 'msetup_')
     d['widgets'] = [x for x in d['widgets'] if not x['id'].startswith(drop)]
     for x in d['widgets']:
