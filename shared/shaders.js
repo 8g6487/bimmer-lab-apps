@@ -470,6 +470,7 @@ uniform vec4 u_hole;      // the map window x, y, w, h px, already inset (w 0 = 
 uniform float u_holeR;    // its corner radius px
 uniform float u_style;    // 0 = the M8's hatched bezel, 1 = the M3's spine and tick ladder
 uniform float u_inner;    // the gauge band's inner circle (180 = the M8's fat wedge, larger = slimmer)
+uniform float u_band;     // the M3 cell's width px (a rare type: lowercase comments only)
 
 const float PI = 3.14159265;
 
@@ -589,9 +590,10 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             // the M3's bracket: a single bright spine on the outside, with a fine ladder of radial ticks inside it
             // (every fifth tick reaches closer to the glass). No hatching: that is the M8's chrome bezel.
             float tstep = 0.034;                                         // radians between ticks
+            if (u_style < 0.5) { c = c; }                               // (the M3 draws its ladder over the cell instead)
             float fr = abs(fract(ab / tstep) - 0.5) * tstep * rb;        // px to the nearest tick
             float major = step(0.5, fract(ab / (tstep * 4.0)));
-            float tickEnd = mix(115.5, 119.5, major);
+            float tickEnd = mix(116.0, 119.0, major);
             float tick = cov(fr * k - 0.7) * smoothstep(112.0, 114.0, rb) * (1.0 - smoothstep(tickEnd - 0.8, tickEnd, rb));
             float spine = cov(abs(rb - 122.5) * k - 0.65);
             c = over(vec4(0.84, 0.87, 0.92, max(spine, 0.75 * tick)), c);
@@ -601,9 +603,14 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             c = over(vec4(0.8, 0.82, 0.88, min(1.0, cov(-bez * k) * (0.4 + 0.35 * hatch) + 0.7 * edge)), c);
         }
     }
-    // the glass
-    float dOut = 120.0 - length(q);
-    float dIn = length(q - vec2(57.0, -68.0)) - u_inner;   // the band's width = this circle's radius
+    // the glass: the M8 cuts it from a big circle set off-centre (a wedge); the M3 needs a slim
+    // constant-width crescent that clears the tick ladder, so it swaps in a concentric annulus
+    float rout = mix(120.0, 119.0, step(0.5, u_style));
+    float rglass = length(q);
+    float dOut = rout - rglass;
+    float dIn = u_style > 0.5
+        ? rglass - (rout - clamp(u_band, 4.0, 26.0))
+        : length(q - vec2(57.0, -68.0)) - u_inner;
     float inside = rIn(min(dOut, dIn), ends, 2.0);
     if (inside > -1.5) {
         float f = clamp(dOut / max(dOut + max(dIn, 0.0), 1.0), 0.0, 1.0);        // 0 at the outer edge, 1 at the inner
@@ -619,6 +626,16 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             c = over(vec4(tank, 0.92 * a * lit), c);
             c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 4.2)), c);
             c = over(vec4(0.86, 0.89, 0.93, 0.95 * cov(abs(inside) * k - 1.0)), c);
+            // the reference's ladder sits on the dark cell itself, so it has to come after the fill
+            {
+                float ab2 = atan(qb.y, qb.x);
+                float st2 = 0.034;
+                float fr2 = abs(fract(ab2 / st2) - 0.5) * st2 * rb;
+                float maj2 = step(0.5, fract(ab2 / (st2 * 4.0)));
+                float tend2 = mix(112.0, 116.0, maj2);
+                float tick2 = cov(fr2 * k - 0.8) * smoothstep(100.0, 104.0, rb) * (1.0 - smoothstep(tend2 - 0.8, tend2, rb));
+                c = over(vec4(0.80, 0.83, 0.88, 0.85 * tick2), c);
+            }
         } else {
             vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
             vec4 bright = vec4(mix(vec3(0.96, 0.97, 0.99), vec3(0.55, 0.57, 0.63), f), mix(1.0, 0.55, f));

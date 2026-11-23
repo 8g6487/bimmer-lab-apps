@@ -198,7 +198,7 @@ def main():
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x['style'] = 'm3'
-            x['inner'] = 176                       # a slimmer bracket than the M8's 180                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
+            x['band'] = 9                          # the M3's slim crescent, px                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
             # Scale 0..8 like the reference, red zone from the 7000 mark: _redMarks() takes
             # min(redline, max-500)/max = 7000/8000 = 0.875, so only the last eighth is red.
@@ -227,9 +227,7 @@ def main():
             x['x'], x['y'], x['w'], x['h'] = 994, 66, 70, 44
             x['align'] = 'left'
             x['color'] = 'fg'
-    for x in d['widgets']:
-        if x.get('font') == 'm_num_mf' and x.get('text') == '7':
-            x['text'] = '8'                # the reference dials' top mark
+    # the numerals keep the M theme's 0/2/4/6/7: the dial reads 7000 rpm at the top, not 8000
     d['widgets'] = d['widgets'] + w
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump(d, f, ensure_ascii=False, separators=(',', ':'))
