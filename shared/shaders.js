@@ -757,8 +757,10 @@ void main() {
         if (u_style > 0.5) {
             // the reference's blade is a narrow grey ribbon against the rim, then black — not a full-width cell
             float rib = clamp(12.0 - d, 0.0, 1.0);
-            vec3 ribc = mix(vec3(0.54, 0.58, 0.65), vec3(0.10, 0.11, 0.13), clamp(d / 12.0, 0.0, 1.0));
-            g = vec4(ribc, mix(0.42, 0.95, clamp(d / 12.0, 0.0, 1.0)) * rib);
+            vec3 ribc = mix(vec3(0.60, 0.64, 0.71), vec3(0.16, 0.17, 0.20), clamp(d / 12.0, 0.0, 1.0));
+            float aRib = mix(0.55, 0.96, clamp(d / 12.0, 0.0, 1.0)) * rib;
+            vec3 col = mix(vec3(0.035, 0.038, 0.045), ribc, rib);   // black inside, the ribbon against the rim
+            g = vec4(col, max(0.92 * (1.0 - rib), aRib));           // the blade stays a solid dark shape
         }
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
