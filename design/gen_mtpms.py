@@ -213,6 +213,16 @@ def main():
 
     drop = ('ico_', 'setup_', 'mico_', 'msetup_')
     d['widgets'] = [x for x in d['widgets'] if not x['id'].startswith(drop)]
+
+    # The two tach dials are the reference's own artwork baked into hud/sprites (make_tach_sprites.py): the
+    # shader could never hold the outline's notch, the glass sheen and the tapered ends at once. So the mtach
+    # widget and its numerals go, and two sprites take their place.
+    d['widgets'] = [x for x in d['widgets']
+                    if x.get('type') != 'mtach' and not x['id'].startswith(('nl', 'nr', 'mnl', 'mnr'))]
+    w = [
+        {'id': 'tach_l', 'type': 'sprite', 'name': 'tach-m3-l', 'x': 470, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
+        {'id': 'tach_r', 'type': 'sprite', 'name': 'tach-m3-r', 'x': 1227, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
+    ]
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x.pop('segbars', None)          # the bars live on the widget itself, not in params
