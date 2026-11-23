@@ -35,10 +35,25 @@ def write(name, im):
 
 def main():
     ref = Image.open(REF)
+    def defuse(im):
+        im = im.convert('RGBA')
+        # The reference is an idle shot: the red glow near 0 rpm is the needle, not the dial. Neutralise it
+        # (keep the grey foot block) so the live marker is the only red down there.
+        px = im.load()
+        for y in range(int(im.height * 0.60), im.height):
+            for x in range(im.width):
+                r, g, b, a = px[x, y]
+                if a and r > 60 and r - g > 26 and r - b > 26:
+                    m = (r + g + b) // 3
+                    px[x, y] = (m, m, m, a)
+        return im
+
     for box, name in ((BOX, 'tach-m3-l'), (BOX_R, 'tach-m3-r')):
         im = ref.crop(box)
         w = int(round(im.width * S)); h = int(round(im.height * S))
-        write(name, im.resize((w, h), Image.LANCZOS))
+        im = im.resize((w, h), Image.LANCZOS)
+        im = defuse(im)
+        write(name, im)
     print('scaled to', (w, h))
 
 if __name__ == '__main__':

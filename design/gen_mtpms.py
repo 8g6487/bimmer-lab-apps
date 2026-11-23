@@ -219,9 +219,17 @@ def main():
     # widget and its numerals go, and two sprites take their place.
     d['widgets'] = [x for x in d['widgets']
                     if x.get('type') != 'mtach' and not x['id'].startswith(('nl', 'nr', 'mnl', 'mnr'))]
-    w = [
+    d['widgets'] = d['widgets'] + [
+        # the dial artwork itself (state-free: the reference is an idle shot, so its needle glow is not in here)
         {'id': 'tach_l', 'type': 'sprite', 'name': 'tach-m3-l', 'x': 470, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         {'id': 'tach_r', 'type': 'sprite', 'name': 'tach-m3-r', 'x': 1227, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
+        # … and the live part on top of it: the M8's red marker/glow, nothing else (u_style 2)
+        {'id': 'tach_l_needle', 'type': 'mtach', 'side': 'left', 'z': 3, 'x': 470, 'y': 60, 'w': 223, 'h': 531,
+         'ym': 320, 'xm': 497, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 40, 'wTop': 14, 'y0': 120, 'y8': 565,
+         'max': 7000, 'style': 'needle', 'rpmMax': 7000},
+        {'id': 'tach_r_needle', 'type': 'mtach', 'side': 'right', 'z': 3, 'x': 1227, 'y': 60, 'w': 223, 'h': 531,
+         'ym': 320, 'xm': 1423, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 40, 'wTop': 14, 'y0': 120, 'y8': 565,
+         'max': 7000, 'style': 'needle', 'rpmMax': 7000},
     ]
     for x in d['widgets']:
         if x['type'] == 'mdash':
@@ -230,6 +238,10 @@ def main():
         f = x.get('font')
         if f in ('m_num', 'm_speed', 'm_gear'):
             x['font'] = f + '_mf'          # this theme's numerals are microgrammafull
+    for x in d['widgets']:
+        if x['type'] == 'mdash':
+            x['mark'] = [0, 0, 0]           # the reference's centre carries no tricolour on this theme
+    d['widgets'] = [x for x in d['widgets'] if x['id'] != 'badge']
     for x in d['widgets']:
         if x['id'] == 'badge':
             # the reference's mark is the shader's tricolour with the M right after it,
