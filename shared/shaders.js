@@ -621,19 +621,12 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             // block at the low end (fine radial hatching) with a thick red bar on the level, and the bracket
             // itself is one bright line. No dark glass, no chrome — that is the M8's.
             float gt = clamp((q.y - yv) * k * 0.30 + 0.72, 0.0, 1.0);
-            float hatch2 = step(0.5, fract(atan(q.y, q.x) * 44.0));
+            float hatch2 = step(0.5, fract(atan(q.y, q.x) * 26.0));
             vec3 tank = mix(vec3(0.40, 0.42, 0.46), vec3(0.88, 0.90, 0.93), gt);
             c = over(vec4(tank, (0.42 + 0.14 * hatch2) * a * lit), c);
-            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 3.4)), c);
+            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 4.2)), c);
             c = over(vec4(0.90, 0.92, 0.96, 0.92 * cov(abs(inside) * k - 0.9)), c);
-            // short ticks hanging inside the bracket, as on the reference's arc
-            float ab2 = atan(qb.y, qb.x);
-            float st2 = 0.052;
-            float fr2 = abs(fract(ab2 / st2) - 0.5) * st2 * rb;
-            float maj2 = step(0.5, fract(ab2 / (st2 * 3.0)));
-            float tend2 = mix(110.0, 114.0, maj2);
-            float tick2 = cov(fr2 * k - 0.8) * smoothstep(108.0, 110.0, rb) * (1.0 - smoothstep(tend2 - 0.8, tend2, rb));
-            c = over(vec4(0.80, 0.83, 0.88, 0.80 * tick2), c);
+            // the reference's bracket carries no ladder at all
         } else {
             vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
             vec4 bright = vec4(mix(vec3(0.96, 0.97, 0.99), vec3(0.55, 0.57, 0.63), f), mix(1.0, 0.55, f));
