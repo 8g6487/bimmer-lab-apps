@@ -595,8 +595,7 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             float major = step(0.5, fract(ab / (tstep * 4.0)));
             float tickEnd = mix(116.0, 119.0, major);
             float tick = cov(fr * k - 0.7) * smoothstep(112.0, 114.0, rb) * (1.0 - smoothstep(tickEnd - 0.8, tickEnd, rb));
-            float spine = cov(abs(rb - 122.5) * k - 0.65);
-            c = over(vec4(0.84, 0.87, 0.92, max(spine, 0.75 * tick)), c);
+            c = over(vec4(0.84, 0.87, 0.92, 0.75 * tick), c);   // the bracket's own outline is the only line
         } else {
             float hatch = step(0.5, fract(ab * 30.0));
             float edge = cov(abs(bez) * k - 0.8);
@@ -618,24 +617,23 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
         float lit = clamp((q.y - yv) * k + 0.5, 0.0, 1.0);                        // below the level line
         float a = cov(-inside * k);
         if (u_style > 0.5) {
-            // the M3's gauge: a thin outlined cell, dark inside, a light tank below the level and a thick red
-            // bar sitting on the level itself (the M8's is a glowing glass with a hairline level line).
-            c = over(vec4(0.045, 0.05, 0.06, 0.90 * a), c);
-            float gt = clamp((q.y - yv) * k * 0.30 + 0.72, 0.0, 1.0);         // 1 at the level, darker downward
-            vec3 tank = mix(vec3(0.26, 0.28, 0.31), vec3(0.86, 0.88, 0.90), gt);
-            c = over(vec4(tank, 0.92 * a * lit), c);
-            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 4.2)), c);
-            c = over(vec4(0.86, 0.89, 0.93, 0.95 * cov(abs(inside) * k - 1.0)), c);
-            // the reference's ladder sits on the dark cell itself, so it has to come after the fill
-            {
-                float ab2 = atan(qb.y, qb.x);
-                float st2 = 0.034;
-                float fr2 = abs(fract(ab2 / st2) - 0.5) * st2 * rb;
-                float maj2 = step(0.5, fract(ab2 / (st2 * 4.0)));
-                float tend2 = mix(112.0, 116.0, maj2);
-                float tick2 = cov(fr2 * k - 0.8) * smoothstep(100.0, 104.0, rb) * (1.0 - smoothstep(tend2 - 0.8, tend2, rb));
-                c = over(vec4(0.80, 0.83, 0.88, 0.85 * tick2), c);
-            }
+            // The reference's gauge is a hairline bracket, not a filled cell: the fuel reads as a light tank
+            // block at the low end (fine radial hatching) with a thick red bar on the level, and the bracket
+            // itself is one bright line. No dark glass, no chrome — that is the M8's.
+            float gt = clamp((q.y - yv) * k * 0.30 + 0.72, 0.0, 1.0);
+            float hatch2 = step(0.5, fract(atan(q.y, q.x) * 44.0));
+            vec3 tank = mix(vec3(0.40, 0.42, 0.46), vec3(0.88, 0.90, 0.93), gt);
+            c = over(vec4(tank, (0.42 + 0.14 * hatch2) * a * lit), c);
+            c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 3.4)), c);
+            c = over(vec4(0.90, 0.92, 0.96, 0.92 * cov(abs(inside) * k - 0.9)), c);
+            // short ticks hanging inside the bracket, as on the reference's arc
+            float ab2 = atan(qb.y, qb.x);
+            float st2 = 0.052;
+            float fr2 = abs(fract(ab2 / st2) - 0.5) * st2 * rb;
+            float maj2 = step(0.5, fract(ab2 / (st2 * 3.0)));
+            float tend2 = mix(110.0, 114.0, maj2);
+            float tick2 = cov(fr2 * k - 0.8) * smoothstep(108.0, 110.0, rb) * (1.0 - smoothstep(tend2 - 0.8, tend2, rb));
+            c = over(vec4(0.80, 0.83, 0.88, 0.80 * tick2), c);
         } else {
             vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
             vec4 bright = vec4(mix(vec3(0.96, 0.97, 0.99), vec3(0.55, 0.57, 0.63), f), mix(1.0, 0.55, f));
@@ -804,18 +802,19 @@ void main() {
         c = over(vec4(0.93, 0.95, 0.98, cov(ty8)), c);
     }
     if (u_style > 0.5) {
-        // the red zone: a solid stripe hugging the outer edge from the redline to the top, as the reference's,
-        // plus two short orange marks in the run-up to it
-        float inb = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
-        float stripe = clamp(d - 3.0, 0.0, 1.0) * clamp(12.0 - d, 0.0, 1.0);   // a wide band inside the edge, as the reference's
+        // The reference does not paint a band inside the glass: its rim is ONE bright hairline, and the redline
+        // and the orange markers are simply segments of that same line. So draw the rim last and recolour it.
         float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
         float redT = (t >= u_redFrom && t <= 1.0) ? yin : 0.0;
-        c = over(vec4(u_red, 0.95 * redT * stripe * inb), c);
-        float o1 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.042)));
-        float o2 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.084)));
-        float o3 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.126)));
-        float o4 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.168)));
-        c = over(vec4(1.0, 0.62, 0.08, 0.95 * max(max(o1, o2), max(o3, o4)) * stripe * inb), c);
+        float o1 = 1.0 - smoothstep(0.0, 0.010, abs(t - (u_redFrom - 0.060)));
+        float o2 = 1.0 - smoothstep(0.0, 0.010, abs(t - (u_redFrom - 0.135)));
+        float orn = clamp(o1 + o2, 0.0, 1.0) * yin;
+        float halfw = mix(1.35, 2.9, redT);                       // the redline segment is a little fatter
+        float rim = cov(abs(d - 1.5) - halfw) * yin;
+        vec3 rc = vec3(0.93, 0.95, 0.98);
+        rc = mix(rc, u_red, redT);
+        rc = mix(rc, vec3(1.0, 0.66, 0.10), orn);
+        c = over(vec4(rc, rim), c);
     }
     gl_FragColor = c;
 }
