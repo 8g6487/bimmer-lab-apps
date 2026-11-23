@@ -754,11 +754,16 @@ void main() {
         float across = clamp(d / w, 0.0, 1.0);
         float yn = y0 - u_value * (y0 - y8);
         vec4 g = vec4(0.62, 0.67, 0.74, mix(0.42, 0.06, across));          // empty glass (bright at the outer edge, as the M8's)
-        if (u_style > 0.5) g = vec4(vec3(mix(0.155, 0.085, across)), mix(0.90, 0.94, across));   // the M3's near-black glass
+        if (u_style > 0.5) {
+            // the reference's blade is a narrow grey ribbon against the rim, then black — not a full-width cell
+            float rib = clamp(12.0 - d, 0.0, 1.0);
+            vec3 ribc = mix(vec3(0.54, 0.58, 0.65), vec3(0.10, 0.11, 0.13), clamp(d / 12.0, 0.0, 1.0));
+            g = vec4(ribc, mix(0.42, 0.95, clamp(d / 12.0, 0.0, 1.0)) * rib);
+        }
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
-        if (p.y > y0 - 20.0) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
-        g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
+        if (p.y > y0 - 20.0 && u_style < 0.5) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
+        if (u_style < 0.5) g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
         // the marker: a red block at the rpm with a glow either side of it
         float dm = abs(p.y - yn);
         if (u_style > 0.5) {
@@ -771,8 +776,8 @@ void main() {
         }
         c = vec4(g.rgb, g.a * inBand);
         c = over(vec4(0.93, 0.95, 0.98, cov(abs(d) - 1.6)), c);               // outer edge
-        c = over(vec4(1.0, 1.0, 1.0, 0.3 * cov(abs(d - 4.0) - 0.6)), c);       // its bevel
-        c = over(vec4(0.66, 0.7, 0.76, 0.75 * cov(abs(d - w) - 0.8)), c);      // inner edge
+        if (u_style < 0.5) c = over(vec4(1.0, 1.0, 1.0, 0.3 * cov(abs(d - 4.0) - 0.6)), c);   // its bevel
+        if (u_style < 0.5) c = over(vec4(0.66, 0.7, 0.76, 0.75 * cov(abs(d - w) - 0.8)), c);   // inner edge
         // BMW's marks: a solid red line from the redline, a few orange dashes in the run-up to it
         bool redM = t >= u_redFrom && d > 6.0 && d < 11.0;
         bool orM = t >= u_orange && t < u_redFrom - 0.01 && d > 6.0 && d < 11.0 && mod(p.y, 20.0) < 7.0;
@@ -792,10 +797,8 @@ void main() {
             float wid = mix(1.2, 1.8, major);
             float reach = mix(12.0, 18.0, major);
             float ty = abs(p.y - yk) - wid;
-            // the reference cuts each tick out of the outer edge: erase the white edge across the tick, then
-            // run the bright mark from just inside it into the glass, so the edge breaks at every 1000
-            c = over(vec4(0.0, 0.0, 0.0, cov(ty * 1.6) * cov(abs(d) - 1.3)), c);
-            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d - 2.4, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
+            // the reference's ticks are little teeth ACROSS the rim: they start ~2.5 px outside it and run in
+            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d + 2.6, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
         }
     } else if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < 24.0) {
         float ty8 = abs(p.y - yk) - 1.5;
@@ -810,13 +813,10 @@ void main() {
         float o2 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.115)));
         float o3 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.175)));
         float orn = clamp(o1 + o2 + o3, 0.0, 1.0) * yin;
-        float halfw = mix(1.35, 4.1, redT);                       // the redline segment is a little fatter
-        halfw = max(halfw, 3.4 * orn);                            // and the orange marks are fat too
-        float rim = cov(abs(d - 1.5) - halfw) * yin;
-        vec3 rc = vec3(0.93, 0.95, 0.98);
-        rc = mix(rc, u_red, redT);
-        rc = mix(rc, vec3(1.0, 0.66, 0.10), orn);
-        c = over(vec4(rc, rim), c);
+        float bandIn = clamp(d - 2.0, 0.0, 1.0) * clamp(9.2 - d, 0.0, 1.0);
+        c = over(vec4(u_red, 0.95 * redT * bandIn), c);
+        c = over(vec4(1.0, 0.66, 0.10, 0.95 * orn * bandIn), c);
+        c = over(vec4(0.93, 0.95, 0.98, cov(abs(d - 1.5) - 1.4) * yin), c);   // the rim last: white and continuous
     }
     gl_FragColor = c;
 }
