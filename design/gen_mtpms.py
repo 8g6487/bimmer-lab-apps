@@ -198,6 +198,7 @@ def main():
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x['style'] = 'm3'
+            x['rpmMax'] = 7000                   # so _redMarks() puts the redline at 6500/7000, like the reference's
             x['band'] = 9                          # the M3's slim crescent, px                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
             # Scale 0..8 like the reference, red zone from the 7000 mark: _redMarks() takes
