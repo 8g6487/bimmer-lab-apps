@@ -783,11 +783,16 @@ void main() {
         c = over(vec4(0.93, 0.95, 0.98, cov(ty8)), c);
     }
     if (u_style > 0.5) {
-        // the red zone: 45 degree hatch running out from the outer edge, in place of the solid block
-        float redT = t >= u_redFrom ? 1.0 : 0.0;
-        float hatch = mod(p.y + d * 1.6, 7.0);
-        float band = clamp(d + 0.5, 0.0, 1.0) * clamp(18.0 - d, 0.0, 1.0);
-        c = over(vec4(u_red, 0.9 * redT * band * clamp(hatch - 3.4, 0.0, 1.0)), c);
+        // the red zone: a solid stripe hugging the outer edge from the redline to the top, as the reference's,
+        // plus two short orange marks in the run-up to it
+        float inb = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
+        float stripe = clamp(d - 1.5, 0.0, 1.0) * clamp(9.0 - d, 0.0, 1.0);
+        float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
+        float redT = (t >= u_redFrom && t <= 1.0) ? yin : 0.0;
+        c = over(vec4(u_red, 0.95 * redT * stripe * inb), c);
+        float o1 = 1.0 - smoothstep(0.0, 0.012, abs(t - (u_redFrom - 0.045)));
+        float o2 = 1.0 - smoothstep(0.0, 0.012, abs(t - (u_redFrom - 0.090)));
+        c = over(vec4(1.0, 0.62, 0.08, 0.95 * max(o1, o2) * stripe * inb), c);
     }
     gl_FragColor = c;
 }
