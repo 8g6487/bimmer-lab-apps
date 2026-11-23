@@ -197,7 +197,8 @@ def main():
 
     for x in d['widgets']:
         if x['type'] == 'mdash':
-            x['style'] = 'm3'                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
+            x['style'] = 'm3'
+            x['inner'] = 176                       # a slimmer bracket than the M8's 180                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
             # Scale 0..8 like the reference, red zone from the 7000 mark: _redMarks() takes
             # min(redline, max-500)/max = 7000/8000 = 0.875, so only the last eighth is red.

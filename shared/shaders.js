@@ -469,6 +469,7 @@ uniform float u_segSlant; // px each segment leans
 uniform vec4 u_hole;      // the map window x, y, w, h px, already inset (w 0 = none): cut see-through over the map
 uniform float u_holeR;    // its corner radius px
 uniform float u_style;    // 0 = the M8's hatched bezel, 1 = the M3's spine and tick ladder
+uniform float u_inner;    // the gauge band's inner circle (180 = the M8's fat wedge, larger = slimmer)
 
 const float PI = 3.14159265;
 
@@ -602,7 +603,7 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
     }
     // the glass
     float dOut = 120.0 - length(q);
-    float dIn = length(q - vec2(57.0, -68.0)) - 180.0;
+    float dIn = length(q - vec2(57.0, -68.0)) - u_inner;   // the band's width = this circle's radius
     float inside = rIn(min(dOut, dIn), ends, 2.0);
     if (inside > -1.5) {
         float f = clamp(dOut / max(dOut + max(dIn, 0.0), 1.0), 0.0, 1.0);        // 0 at the outer edge, 1 at the inner
