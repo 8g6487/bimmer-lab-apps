@@ -776,7 +776,7 @@ void main() {
         // BMW's marks: a solid red line from the redline, a few orange dashes in the run-up to it
         bool redM = t >= u_redFrom && d > 6.0 && d < 11.0;
         bool orM = t >= u_orange && t < u_redFrom - 0.01 && d > 6.0 && d < 11.0 && mod(p.y, 20.0) < 7.0;
-        if (redM || orM) {
+        if (u_style < 0.5 && (redM || orM)) {   // the M8's marks; the M3 recolours its own rim instead
             c = over(vec4(redM ? u_red : vec3(1.0, 0.6, 0.1), 0.95), c);
         }
     }
@@ -806,10 +806,12 @@ void main() {
         // and the orange markers are simply segments of that same line. So draw the rim last and recolour it.
         float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
         float redT = (t >= u_redFrom && t <= 1.0) ? yin : 0.0;
-        float o1 = 1.0 - smoothstep(0.0, 0.010, abs(t - (u_redFrom - 0.060)));
-        float o2 = 1.0 - smoothstep(0.0, 0.010, abs(t - (u_redFrom - 0.135)));
-        float orn = clamp(o1 + o2, 0.0, 1.0) * yin;
-        float halfw = mix(1.35, 2.9, redT);                       // the redline segment is a little fatter
+        float o1 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.055)));
+        float o2 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.115)));
+        float o3 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.175)));
+        float orn = clamp(o1 + o2 + o3, 0.0, 1.0) * yin;
+        float halfw = mix(1.35, 4.1, redT);                       // the redline segment is a little fatter
+        halfw = max(halfw, 3.4 * orn);                            // and the orange marks are fat too
         float rim = cov(abs(d - 1.5) - halfw) * yin;
         vec3 rc = vec3(0.93, 0.95, 0.98);
         rc = mix(rc, u_red, redT);
