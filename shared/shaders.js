@@ -754,8 +754,9 @@ void main() {
         // Needle-only mode: the dial is a baked sprite, so this layer paints just the live marker — the red
         // block the reference shows at the idle speed — and nothing else.
         if (t >= 0.0 && t <= 1.0) {
+            float yn2 = y0 - u_value * (y0 - y8);       // the marker's height for this rpm
             float inBand2 = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
-            float dmn = abs(p.y - yn);
+            float dmn = abs(p.y - yn2);
             vec4 g2 = vec4(u_red, 0.85 * exp(-dmn / 22.0));
             g2 = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.30 * cov(dmn - 6.0)), cov(dmn - 17.0)), g2);
             if (u_shiftNow > 0.5) g2 = vec4(u_red, 0.75 * exp(-dmn / 18.0));

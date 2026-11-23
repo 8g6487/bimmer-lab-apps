@@ -198,6 +198,8 @@ def main():
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x['style'] = 'm3'
+            x['gaugeL'] = {'cx': 0, 'cy': 0, 'r': 0}   # the artwork is a sprite now, so the shader's bracket goes
+            x['gaugeR'] = {'cx': 0, 'cy': 0, 'r': 0}
             x['rpmMax'] = 7000                   # so _redMarks() puts the redline at 6500/7000, like the reference's
             x['band'] = 24                       # the reference's bracket is a wide band, not a hairline                          # the M3's slim crescent, px                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
         if x['type'] == 'mtach':
@@ -219,10 +221,16 @@ def main():
     # widget and its numerals go, and two sprites take their place.
     d['widgets'] = [x for x in d['widgets']
                     if x.get('type') != 'mtach' and not x['id'].startswith(('nl', 'nr', 'mnl', 'mnr'))]
+    # the gauge artwork carries its own 0 / 1\/2 / 1 and 50 / 100 / 150, so the theme's copies go
+    d['widgets'] = [x for x in d['widgets'] if x['id'] not in
+                    ('b_hi', 'b_mid', 'b_lo', 'o_hi', 'o_mid', 'o_lo', 'fuel_icon')]
     d['widgets'] = d['widgets'] + [
         # the dial artwork itself (state-free: the reference is an idle shot, so its needle glow is not in here)
         {'id': 'tach_l', 'type': 'sprite', 'name': 'tach-m3-l', 'x': 470, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         {'id': 'tach_r', 'type': 'sprite', 'name': 'tach-m3-r', 'x': 1227, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
+        # the fuel and oil brackets are the reference's artwork too (level is baked; see HANDOFF)
+        {'id': 'gauge_l', 'type': 'sprite', 'name': 'gauge-m3-l', 'x': 157, 'y': 367, 'w': 210, 'h': 236, 'z': 2},
+        {'id': 'gauge_r', 'type': 'sprite', 'name': 'gauge-m3-r', 'x': 1573, 'y': 367, 'w': 210, 'h': 236, 'z': 2},
         # … and the live part on top of it: the M8's red marker/glow, nothing else (u_style 2)
         {'id': 'tach_l_needle', 'type': 'mtach', 'side': 'left', 'z': 3, 'x': 470, 'y': 60, 'w': 223, 'h': 531,
          'ym': 320, 'xm': 497, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 40, 'wTop': 14, 'y0': 120, 'y8': 565,

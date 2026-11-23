@@ -48,7 +48,9 @@ def main():
                     px[x, y] = (m, m, m, a)
         return im
 
-    for box, name in ((BOX, 'tach-m3-l'), (BOX_R, 'tach-m3-r')):
+    BOX_GL = (240, 560, 560, 920)      # the fuel bracket, reference pixels
+    BOX_GR = (2400, 560, 2720, 920)     # the oil/temperature bracket
+    for box, name in ((BOX, 'tach-m3-l'), (BOX_R, 'tach-m3-r'), (BOX_GL, 'gauge-m3-l'), (BOX_GR, 'gauge-m3-r')):
         im = ref.crop(box)
         w = int(round(im.width * S)); h = int(round(im.height * S))
         im = im.resize((w, h), Image.LANCZOS)
