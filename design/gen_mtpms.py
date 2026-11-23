@@ -219,6 +219,17 @@ def main():
         f = x.get('font')
         if f in ('m_num', 'm_speed', 'm_gear'):
             x['font'] = f + '_mf'          # this theme's numerals are microgrammafull
+    for x in d['widgets']:
+        if x['id'] == 'badge':
+            # the reference's mark is the shader's tricolour with the M right after it,
+            # not the long "BMW M3" string the stock theme prints under the stripes
+            x['text'] = 'M'
+            x['x'], x['y'], x['w'], x['h'] = 994, 66, 70, 44
+            x['align'] = 'left'
+            x['color'] = 'fg'
+    for x in d['widgets']:
+        if x.get('font') == 'm_num_mf' and x.get('text') == '7':
+            x['text'] = '8'                # the reference dials' top mark
     d['widgets'] = d['widgets'] + w
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump(d, f, ensure_ascii=False, separators=(',', ':'))

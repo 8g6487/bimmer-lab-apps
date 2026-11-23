@@ -777,7 +777,10 @@ void main() {
             float wid = mix(1.2, 1.8, major);
             float reach = mix(12.0, 18.0, major);
             float ty = abs(p.y - yk) - wid;
-            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d + 0.5, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
+            // the reference cuts each tick out of the outer edge: erase the white edge across the tick, then
+            // run the bright mark from just inside it into the glass, so the edge breaks at every 1000
+            c = over(vec4(0.0, 0.0, 0.0, cov(ty * 1.6) * cov(abs(d) - 1.3)), c);
+            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d - 2.4, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
         }
     } else if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < 24.0) {
         float ty8 = abs(p.y - yk) - 1.5;
@@ -787,13 +790,15 @@ void main() {
         // the red zone: a solid stripe hugging the outer edge from the redline to the top, as the reference's,
         // plus two short orange marks in the run-up to it
         float inb = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
-        float stripe = clamp(d - 1.5, 0.0, 1.0) * clamp(9.0 - d, 0.0, 1.0);
+        float stripe = clamp(d - 3.0, 0.0, 1.0) * clamp(12.0 - d, 0.0, 1.0);   // a wide band inside the edge, as the reference's
         float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
         float redT = (t >= u_redFrom && t <= 1.0) ? yin : 0.0;
         c = over(vec4(u_red, 0.95 * redT * stripe * inb), c);
-        float o1 = 1.0 - smoothstep(0.0, 0.012, abs(t - (u_redFrom - 0.045)));
-        float o2 = 1.0 - smoothstep(0.0, 0.012, abs(t - (u_redFrom - 0.090)));
-        c = over(vec4(1.0, 0.62, 0.08, 0.95 * max(o1, o2) * stripe * inb), c);
+        float o1 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.042)));
+        float o2 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.084)));
+        float o3 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.126)));
+        float o4 = 1.0 - smoothstep(0.0, 0.009, abs(t - (u_redFrom - 0.168)));
+        c = over(vec4(1.0, 0.62, 0.08, 0.95 * max(max(o1, o2), max(o3, o4)) * stripe * inb), c);
     }
     gl_FragColor = c;
 }
