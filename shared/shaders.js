@@ -741,13 +741,26 @@ void main() {
     float d = (p.x - xo) / sqrt(1.0 + slope * slope);      // + = into the blade, towards the middle
     float t = (y0 - p.y) / (y0 - y8);
     float w = mix(u_wid.x, u_wid.y, clamp(t, 0.0, 1.0)) + u_wid.z * exp(-dy * dy / 22000.0);
+    // The M3's outline folds INWARD at every major tick and comes back: the reference's outline is not a smooth
+    // arc with bars laid on it, the bars are part of the path. Perturbing d here bends the rim, the band and
+    // both outlines together, which is what makes the fold read as one edge.
+    if (u_style > 0.5) {
+        float kk = clamp(t, 0.0, 1.0) * u_ticks;
+        float dm = abs(fract(kk + 0.5) - 0.5) * 2.0;
+        d -= 2.8 * exp(-dm * dm / 0.008);
+    }
     vec4 c = vec4(0.0);
     if (t >= 0.0 && t <= 1.0) {
         float inBand = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
         float across = clamp(d / w, 0.0, 1.0);
         float yn = y0 - u_value * (y0 - y8);
         vec4 g = vec4(0.62, 0.67, 0.74, mix(0.42, 0.06, across));          // empty glass (bright at the outer edge, as the M8's)
-        if (u_style > 0.5) g = vec4(vec3(mix(0.155, 0.085, across)), mix(0.90, 0.94, across));   // the M3's near-black glass
+        if (u_style > 0.5) {
+            // the reference's blade: a glossy grey band between two thin bright outlines, black beyond
+            float tt = clamp(d / max(w, 1.0), 0.0, 1.0);
+            vec3 band = mix(vec3(0.72, 0.75, 0.80), vec3(0.16, 0.17, 0.20), tt);
+            g = vec4(band, mix(0.22, 0.92, tt));
+        }
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
         if (p.y > y0 - 20.0) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
