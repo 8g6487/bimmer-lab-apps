@@ -282,8 +282,18 @@ function inspector() {
     } else if (kind === 'text') {
       inp = el('input'); inp.type = 'text'; inp.value = val == null ? '' : String(val);
     } else if (kind === 'font') {
+      // Face and size are two separate choices: the atlas code (f2.name) is just their product, so the list is
+      // grouped by face and each size is spelled out in px. Picking a face first keeps 99 baffling codes apart.
       inp = el('select'); inp.appendChild(el('option', null, ''));
-      (S.schema.fonts || []).forEach((f2) => { const o = el('option', null, f2.name); o.value = f2.name; inp.appendChild(o); });
+      const F = S.schema.fonts || [];
+      const faces = Array.from(new Set(F.map((f2) => f2.stem || 'font'))).sort();
+      faces.forEach((stem) => {
+        const grp = document.createElement('optgroup');
+        grp.label = stem;
+        F.filter((f2) => (f2.stem || 'font') === stem).sort((a, b) => (a.size || 0) - (b.size || 0))
+          .forEach((f2) => { const o = el('option', null, (f2.size || '?') + ' px · ' + f2.name); o.value = f2.name; grp.appendChild(o); });
+        inp.appendChild(grp);
+      });
       inp.value = val || '';
     } else {
       inp = el('input'); inp.type = 'number'; inp.step = 'any'; inp.value = val == null ? '' : val;
