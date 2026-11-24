@@ -505,8 +505,20 @@ $('livebox').onchange = (e) => {
   const wrap = $('stagewrap');
   wrap.classList.toggle('live', e.target.checked);
   if (e.target.checked) $('boxhide').checked = true;
+  // The plate is the real app, so it keeps animating whether or not the boxes are live. With live off there
+  // is nothing to follow, so freeze the demo signals — otherwise "live off" looks exactly like "live on".
+  freezePlate(!e.target.checked);
   render();
 };
+async function freezePlate(freeze) {
+  try {
+    await api('/signals', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ mode: freeze ? 'manual' : 'demo', values: {} }) });
+    say(freeze ? 'plate frozen (demo signals paused)' : 'demo signals running', 'ok');
+  } catch (err) {
+    // the app is not running; nothing to freeze
+  }
+}
 // The cluster is always the stage's backing plate: with `live` off it shows the last *saved* layout, so the
 // boxes sit on something and unsaved edits are visible as a difference against it.
 function mountPlate() { $('live').src = '/?only=1&clean=1&t=' + Date.now(); }
