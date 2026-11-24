@@ -799,12 +799,14 @@ void main() {
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it. The M3's is the
         // reference's panel — solid grey, framed by the blade's own edges plus a bright top line.
-        if (p.y > y0 - (u_style > 0.5 ? 26.0 : 20.0))
+        // the foot panel's edges run across the blade, so they slant with it rather than staying flat
+        float slant = u_style > 0.5 ? -0.62 : 0.0;
+        float yFoot = y0 - (u_style > 0.5 ? 26.0 : 20.0) + slant * d;
+        if (p.y > yFoot)
             g = over(u_style > 0.5 ? vec4(0.50, 0.53, 0.58, 0.95) : vec4(0.7, 0.72, 0.78, 0.22), g);
         if (u_style > 0.5) {
-            float fy = p.y - (y0 - 26.0);
-            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(fy) - 1.0)), g);        // its top rule
-            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(p.y - (y0 - 1.5)) - 1.0)), g);  // and its floor
+            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(p.y - yFoot) - 1.0)), g);        // its top rule
+            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(p.y - (y0 - 1.5 + slant * d)) - 1.0)), g);
         }
         g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
         // the marker: a red block at the rpm with a glow either side of it
@@ -838,7 +840,8 @@ void main() {
         float major = 1.0 - mod(kk, 2.0);
         if (kk >= 0.0 && kk <= u_ticks) {
             float wid = mix(1.5, 2.2, major);
-            float reach = mix(13.0, 20.0, major);
+            // near 0 the blade is only ~10 px wide, so a fixed 20 px tooth would run past it: cap the reach
+            float reach = min(mix(13.0, 20.0, major), max(w - 1.5, 6.0));
             float ty = abs(p.y - yk) - wid;
             // the reference's marks are teeth ON the rim: each one reaches 4 px outside the bright edge and
             // a long way in, and the edge runs unbroken underneath them
@@ -852,9 +855,12 @@ void main() {
     if (u_style > 0.5) {
         float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
         // the redline: a band just inside the rim from u_redFrom to the top, and two orange dashes before it
-        float redT = (t >= u_redFrom && t <= 1.0) ? 1.0 : 0.0;
-        float rb = redT * clamp(d - 3.0, 0.0, 1.0) * clamp(11.0 - d, 0.0, 1.0) * yin;
-        c = over(vec4(u_red, 0.95 * rb), c);
+        float rFrom = u_redFrom - 0.030;                 // the reference's red starts just under the top tick
+        // The band is a fat stripe between the rim and the glass. Its lower end is cut on the tick's slant
+        // and its tip closes just before the very top, so it never reads as a hairline running off the end.
+        float rT = smoothstep(rFrom, rFrom + 0.014, t) * (1.0 - smoothstep(0.988, 1.0, t));
+        float rb = rT * clamp(d - 3.6, 0.0, 1.0) * clamp(11.5 - d, 0.0, 1.0) * yin;
+        c = over(vec4(u_red, 0.96 * rb), c);
         float o1 = 1.0 - smoothstep(0.0, 0.016, abs(t - (u_redFrom - 0.062)));
         float o2 = 1.0 - smoothstep(0.0, 0.016, abs(t - (u_redFrom - 0.125)));
         float orn = clamp(o1 + o2, 0.0, 1.0) * yin * clamp(d - 4.0, 0.0, 1.0) * clamp(10.0 - d, 0.0, 1.0);
