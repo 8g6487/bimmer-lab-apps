@@ -43,6 +43,15 @@ def main(argv=None):
     ap.add_argument('--max', type=int, default=512, help='longest side after resize (default 512)')
     ap.add_argument('--tintable', action='store_true', help='white + alpha mask, tinted by the widget colour')
     ap.add_argument('--bleed', type=float, default=0.0, help='alpha below this (0..1) becomes 0, above becomes 1')
+    ap.add_argument('--key', choices=['none', 'black', 'luma'], default='none',
+                    help='take the alpha from the picture: black = max(r,g,b) (a dark background), '
+                         'luma = the luminance (a picture that is its own mask)')
+    ap.add_argument('--tol', type=float, default=26.0,
+                    help='brightness treated as background for --key black (0..255, default 26)')
+    ap.add_argument('--gamma', type=float, default=1.0, help='alpha curve after --key (0.7 brightens a faint mask)')
+    ap.add_argument('--kill-red-below', type=float, default=0.0,
+                    help='0..1: red pixels lower than this share of the box lose their red (a baked redline in a '
+                         'photo, so the theme can draw its own)')
     args = ap.parse_args(argv)
 
     name = args.name or os.path.splitext(os.path.basename(args.src))[0]
@@ -68,6 +77,31 @@ def main(argv=None):
             for x in range(w):
                 r, g, b, a = px[x, y]
                 px[x, y] = (r, g, b, 255 if a >= t else 0)
+
+    if args.key != 'none':
+        src = im.load()
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = src[x, y]
+                if args.key == 'black':
+                    v = max(r, g, b)
+                    fade = max(0.0, min(1.0, (v - args.tol) / max(1.0, 255.0 - args.tol)))
+                else:
+                    v = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+                    fade = v
+                if args.gamma != 1.0:
+                    fade = pow(fade, args.gamma)
+                src[x, y] = (r, g, b, int(round(min(1.0, fade) * 255)))
+
+    if args.kill_red_below > 0:
+        y_from = int(round(args.kill_red_below * h))
+        src = im.load()
+        for y in range(y_from, h):
+            for x in range(w):
+                r, g, b, a = src[x, y]
+                if r > 90 and r > g * 1.6 and r > b * 1.6:      # baked redline, not a normal red highlight
+                    l = int(0.2126 * r + 0.7152 * g + 0.0722 * b)
+                    src[x, y] = (l, l, l, a)
 
     raw = im.tobytes()
     meta = {'w': w, 'h': h, 'tintable': bool(args.tintable),
