@@ -759,7 +759,14 @@ void main() {
             float yn2 = y0 - u_value * (y0 - y8);       // the marker's height for this rpm
             float inBand2 = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
             float below = step(yn2, p.y);                       // 1 below the marker, 0 above
-            vec4 g2 = vec4(0.26, 0.28, 0.32, 0.78 * below * inBand2);   // the grey level, filled to the rpm
+            // the M8's own rev band, reused verbatim: a light grey sheet below the needle that fades
+            // towards the inner edge, so the fill reads as the M view's band rather than a flat overlay
+            float across2 = clamp(d / max(w, 1.0), 0.0, 1.0);
+            // this layer composites over black (the dial itself is a sprite), so the M8's 0.34 alpha would
+            // read as near-black here: keep its gradient, raise the sheet to an opaque grey
+            float strip = step(-1.0, d) * step(d, w + 1.0);
+            vec4 g2 = below * strip * vec4(mix(vec3(0.80, 0.82, 0.86), vec3(0.44, 0.46, 0.50), across2),
+                                           mix(0.92, 0.80, across2));
             float dmn = p.y - yn2;
             float bar = cov(abs(dmn) - 6.0);                    // the reference's soft red bar
             g2 = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.25 * cov(abs(dmn) - 3.0)),
