@@ -304,6 +304,9 @@ function inspector() {
       if (kind === 'array' || kind === 'json') { try { v = JSON.parse(inp.value); } catch (e) { say(e.message, 'err'); rerval(inp, val); return; } }
       else if (kind === 'text' || kind === 'font') v = inp.value;
       else v = inp.value === '' ? undefined : Number(inp.value);
+      // A rebuilt field can fire "change" while carrying the value it already had. Without this guard that
+      // marks the doc dirty, queueSave() posts the layout, the app reloads and re-renders — a save loop.
+      if (JSON.stringify(v) === JSON.stringify(val) && (v !== undefined || !(key in w))) { rerval(inp, val); return; }
       if (v === undefined) delete w[key]; else w[key] = v;
       if (key === 'id') S.sel = w.id;
       changed(before);
