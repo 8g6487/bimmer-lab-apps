@@ -25,6 +25,23 @@
   .hd { position:sticky; top:0; z-index:2; background:var(--panel); padding:8px 10px;
     border-bottom:1px solid var(--line); font-weight:600; letter-spacing:.02em; }
   #list { padding:4px 0; }
+  /* One header per type, with a mini glyph per row so a widget is recognisable without reading its id. */
+  .grp { display:flex; align-items:center; gap:6px; padding:5px 10px 3px; cursor:pointer;
+    color:var(--dim); font-size:11px; letter-spacing:.05em; text-transform:uppercase; user-select:none;
+    border-top:1px solid #1c2129; margin-top:2px; }
+  .grp:first-child { border-top:0; margin-top:0; }
+  .grp:hover { color:var(--ink); }
+  .grp .n { color:#5f6a7a; }
+  .grp .car { margin-left:auto; color:#5f6a7a; font-size:10px; }
+  .gl { width:20px; height:14px; flex:none; display:flex; align-items:center; justify-content:center;
+    font-size:9px; font-weight:600; border-radius:3px; color:#bcd0ea; background:#1b2330;
+    border:1px solid #263041; }
+  .gl.t { color:#d9e2ee; }           /* text */
+  .gl.d { color:#7fd1ff; }           /* dial / arc */
+  .gl.s { color:#a9d18e; }           /* sprite / picture */
+  .gl.f { color:#ffd479; }           /* fill / bars */
+  .gl.m { color:#ff9b9b; }           /* badge */
+  .row .gl { margin-right:1px; }
   .row { display:flex; gap:6px; align-items:center; padding:2px 10px; cursor:pointer; }
   .row:hover { background:#1b2028; }
   .row.on { background:#1d2c42; }
@@ -115,7 +132,7 @@
 
 <script>
 'use strict';
-const S = { schema:null, name:null, doc:null, sel:null, undo:[], zoom:1, zoomMode:'fit', dirty:false };
+const S = { schema:null, name:null, doc:null, sel:null, undo:[], zoom:1, zoomMode:'fit', dirty:false, fold:{} };
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
@@ -170,6 +187,24 @@ function order() {
   return S.doc.widgets.map((w, i) => ({ w: w, i: i }))
     .sort((a, b) => ((a.w.z || 0) - (b.w.z || 0)) || (a.i - b.i)).map((x) => x.w);
 }
+// A 20x14 chip per type: the letter says what kind of thing it is at a glance (text, dial, picture, bar,
+// badge), so a list of 90 ids stays scannable. Purely a legend — the shape is not the widget.
+const GLYPHS = {
+  text: ['A', 't'], atext: ['A', 't'], scale: ['A', 't'], gridlabels: ['A', 't'], label: ['A', 't'],
+  mtach: ['◔', 'd'], mdash: ['◔', 'd'], sdash: ['◔', 'd'], vdash: ['◔', 'd'], arc: ['◔', 'd'],
+  dial: ['◔', 'd'], revarc: ['◔', 'd'], meter: ['◔', 'd'], ribbon: ['◔', 'd'],
+  sprite: ['▣', 's'], icon: ['▣', 's'], mview: ['▣', 's'], image: ['▣', 's'],
+  segbar: ['≡', 'f'], fill: ['≡', 'f'], boxes: ['≡', 'f'], tiles: ['≡', 'f'], line: ['≡', 'f'],
+  badge: ['M', 'm'],
+  fill: ['≣', 'f'],
+};
+function glyph(type) {
+  const g = GLYPHS[type] || [String(type || '?').slice(0, 1).toUpperCase(), ''];
+  const e = el('span', 'gl' + (g[1] ? ' ' + g[1] : ''), g[0]);
+  e.title = type;
+  return e;
+}
+
 function render() {
   const stage = $('stage'), wrap = $('stagewrap');
   const bw = wrap.clientWidth, bh = wrap.clientHeight;
@@ -197,12 +232,26 @@ function render() {
   });
 
   const list = $('list'); list.textContent = '';
-  order().forEach((w) => {
-    const r = el('div', 'row' + (w.id === S.sel ? ' on' : ''));
-    r.appendChild(el('span', 'ty', w.type));
-    r.appendChild(el('span', 'id', w.id));
-    r.onclick = () => { S.sel = w.id; render(); };
-    list.appendChild(r);
+  // Group by type — z-order interleaves types, so consecutive-run grouping would repeat a header.
+  const groups = new Map();
+  order().forEach((w) => { if (!groups.has(w.type)) groups.set(w.type, []); groups.get(w.type).push(w); });
+  groups.forEach((arr, type) => {
+    const fold = S.fold[type];
+    const g = el('div', 'grp');
+    g.appendChild(el('span', 'car', fold ? '▸' : '▾'));
+    g.appendChild(glyph(type));
+    g.appendChild(el('span', null, type));
+    g.appendChild(el('span', 'n', '(' + arr.length + ')'));
+    g.onclick = () => { S.fold[type] = !fold; render(); };
+    list.appendChild(g);
+    if (fold) return;
+    arr.forEach((w) => {
+      const r = el('div', 'row' + (w.id === S.sel ? ' on' : ''));
+      r.style.paddingLeft = '18px';
+      r.appendChild(el('span', 'id', w.id));
+      r.onclick = () => { S.sel = w.id; render(); };
+      list.appendChild(r);
+    });
   });
   $('count').textContent = '(' + S.doc.widgets.length + ')';
   $('undo').disabled = !S.undo.length;
