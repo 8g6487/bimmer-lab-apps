@@ -45,6 +45,9 @@
     background:rgba(8,14,22,.7); pointer-events:none; display:none; }
   .wg.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; background:rgba(76,154,255,.10); }
   .wg.sel .tag, .wg:hover .tag { display:block; }
+  .guide { position:absolute; background:#ff4d6d; pointer-events:none; z-index:9; }
+  .guide.v { width:1px; height:720px; top:0; }
+  .guide.h { height:1px; width:1920px; left:0; }
   .wg.oob { border-color:var(--bad); }
   .wg .h { position:absolute; right:-5px; bottom:-5px; width:10px; height:10px; background:var(--accent);
     border-radius:2px; cursor:nwse-resize; display:none; }
@@ -270,6 +273,49 @@ function queueSave() {
   saveTimer = setTimeout(() => { saveTimer = null; save(true); }, 220);
 }
 
+/* ---------- alignment guides ---------- */
+// Every widget contributes three lines per axis: its two edges and its centre. While dragging, the moved
+// widget's same three lines are tested against them (and against the stage's edges/centre); the closest hit
+// inside 5 screen px wins, the position is nudged by that delta, and the line is drawn so the eye can see
+// what it locked onto. Hold Alt to place freely.
+const T_LINES = 5;
+function alignTargets(exceptId) {
+  const xs = [0, 960, 1920], ys = [0, 360, 720];
+  S.doc.widgets.forEach((o) => {
+    if (o.id === exceptId) return;
+    xs.push(o.x, o.x + o.w / 2, o.x + o.w);
+    ys.push(o.y, o.y + o.h / 2, o.y + o.h);
+  });
+  return { xs: xs, ys: ys };
+}
+function closest(anchors, targets, tol) {
+  let best = null;
+  for (let i = 0; i < anchors.length; i++) {
+    for (let j = 0; j < targets.length; j++) {
+      const d = targets[j] - anchors[i];
+      if (Math.abs(d) <= tol && (!best || Math.abs(d) < Math.abs(best.d))) best = { d: d, v: targets[j] };
+    }
+  }
+  return best;
+}
+function snapTo(w, x, y) {
+  if (!w) return { x: x, y: y, vx: null, vy: null };
+  const t = alignTargets(w.id), tol = T_LINES / S.zoom;
+  const bx = closest([x, x + w.w / 2, x + w.w], t.xs, tol);
+  const by = closest([y, y + w.h / 2, y + w.h], t.ys, tol);
+  return { x: bx ? x + bx.d : x, y: by ? y + by.d : y, vx: bx ? bx.v : null, vy: by ? by.v : null };
+}
+function paintGuides(vx, vy) {
+  const stage = $('stage');
+  Array.from(stage.querySelectorAll('.guide')).forEach((g) => g.remove());
+  if (vx !== null && vx !== undefined) {
+    const g = el('div', 'guide v'); g.style.left = vx + 'px'; stage.appendChild(g);
+  }
+  if (vy !== null && vy !== undefined) {
+    const g = el('div', 'guide h'); g.style.top = vy + 'px'; stage.appendChild(g);
+  }
+}
+
 /* ---------- dragging ---------- */
 let drag = null;
 $('stage').addEventListener('pointerdown', (e) => {
@@ -288,13 +334,15 @@ $('stage').addEventListener('pointerdown', (e) => {
 function onMove(e) {
   if (!drag) return;
   const dx = (e.clientX - drag.sx) / S.zoom, dy = (e.clientY - drag.sy) / S.zoom;
-  const snap = (v) => (e.altKey ? Math.round(v) : Math.round(v));
   if (drag.resize) {
-    drag.w.w = Math.max(1, snap(drag.ow + dx));
-    drag.w.h = Math.max(1, snap(drag.oh + dy));
+    drag.w.w = Math.max(1, Math.round(drag.ow + dx));
+    drag.w.h = Math.max(1, Math.round(drag.oh + dy));
+    paintGuides(null, null);
   } else {
-    drag.w.x = Math.max(-9999, snap(drag.ox + dx));
-    drag.w.y = Math.max(-9999, snap(drag.oy + dy));
+    const raw = { x: Math.round(drag.ox + dx), y: Math.round(drag.oy + dy) };
+    const hit = e.altKey ? { x: raw.x, y: raw.y, vx: null, vy: null } : snapTo(drag.w, raw.x, raw.y);
+    drag.w.x = hit.x; drag.w.y = hit.y;
+    paintGuides(e.altKey ? null : hit.vx, e.altKey ? null : hit.vy);
   }
   paintOne(drag.w);
 }
@@ -310,6 +358,7 @@ function paintOne(w) {
 }
 function onUp() {
   window.removeEventListener('pointermove', onMove);
+  Array.from($('stage').querySelectorAll('.guide')).forEach((g) => g.remove());
   if (!drag) return;
   const before = drag.before;
   drag = null;
