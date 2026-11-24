@@ -49,7 +49,7 @@ def main():
         return im
 
     BOX_GL = (240, 560, 470, 845)      # the fuel bracket, reference pixels
-    BOX_GR = (2435, 560, 2665, 845)     # the oil/temperature bracket
+    BOX_GR = (2435, 540, 2705, 845)     # the oil/temperature bracket
     def hole(im):
         """The gauge artwork's tank and level bar must be live, so they are cut out of the sprite: the frame,
         the numerals and the icon are bright white, the tank is mid grey and the bar is red."""

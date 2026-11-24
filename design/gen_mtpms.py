@@ -229,14 +229,14 @@ def main():
         {'id': 'tach_l', 'type': 'sprite', 'name': 'tach-m3-l', 'x': 470, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         {'id': 'tach_r', 'type': 'sprite', 'name': 'tach-m3-r', 'x': 1227, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         # the fuel and oil brackets are the reference's artwork too (level is baked; see HANDOFF)
-        {'id': 'gauge_l', 'type': 'sprite', 'name': 'gauge-m3-l', 'x': 157, 'y': 367, 'w': 151, 'h': 187, 'z': 2},
-        {'id': 'gauge_r', 'type': 'sprite', 'name': 'gauge-m3-r', 'x': 1573, 'y': 367, 'w': 151, 'h': 187, 'z': 2},
+        {'id': 'gauge_l', 'type': 'sprite', 'name': 'gauge-m3-l', 'x': 157, 'y': 367, 'w': 177, 'h': 200, 'z': 2},
+        {'id': 'gauge_r', 'type': 'sprite', 'name': 'gauge-m3-r', 'x': 1573, 'y': 367, 'w': 177, 'h': 200, 'z': 2},
         # … and the live part on top of it: the M8's red marker/glow, nothing else (u_style 2)
         {'id': 'tach_l_needle', 'type': 'mtach', 'side': 'left', 'z': 3, 'x': 470, 'y': 60, 'w': 223, 'h': 531,
-         'ym': 320, 'xm': 509, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 26, 'wTop': 9, 'y0': 120, 'y8': 565,
+         'ym': 320, 'xm': 509, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 18, 'wTop': 8, 'y0': 120, 'y8': 565,
          'max': 7000, 'style': 'needle', 'rpmMax': 7000},
         {'id': 'tach_r_needle', 'type': 'mtach', 'side': 'right', 'z': 3, 'x': 1227, 'y': 60, 'w': 223, 'h': 531,
-         'ym': 320, 'xm': 1435, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 26, 'wTop': 9, 'y0': 120, 'y8': 565,
+         'ym': 320, 'xm': 1435, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 18, 'wTop': 8, 'y0': 120, 'y8': 565,
          'max': 7000, 'style': 'needle', 'rpmMax': 7000},
     ]
     for x in d['widgets']:
