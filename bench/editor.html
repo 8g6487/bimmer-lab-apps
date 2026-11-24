@@ -32,7 +32,8 @@
   .row .ty { color:var(--dim); font-size:11px; }
   .row.hidden { opacity:.45; }
   #stagewrap { position:relative; overflow:hidden; background:#07090c; }
-  #live { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none; opacity:0; transition:opacity .15s; }
+  #live { position:absolute; left:0; top:0; width:1920px; height:720px; border:0; transform-origin:0 0;
+    pointer-events:none; opacity:0; transition:opacity .15s; }
   #stagewrap.live #live { opacity:1; }
   #stage { position:absolute; left:0; top:0; transform-origin:0 0; }
   #stagewrap.live #stage { background:transparent; }
@@ -149,6 +150,9 @@ function render() {
   stage.style.transform = 'scale(' + S.zoom + ')';
   const ox = Math.max(0, (bw - 1920 * S.zoom) / 2), oy = Math.max(0, (bh - 720 * S.zoom) / 2);
   stage.style.left = ox + 'px'; stage.style.top = oy + 'px';
+  const live = $('live');
+  live.style.transform = 'scale(' + S.zoom + ')';
+  live.style.left = ox + 'px'; live.style.top = oy + 'px';
 
   stage.textContent = '';
   const clean = $('boxhide').checked;
@@ -254,6 +258,15 @@ function changed(before) {
   if (S.undo.length > 60) S.undo.shift();
   S.dirty = true;
   render();
+  queueSave();
+}
+// While `live` is on, the overlay is the real app watching the layout file, so an edit has to be written
+// out before it can show up. Debounced, because a drag fires dozens of changes a second.
+let saveTimer = null;
+function queueSave() {
+  if (!$('livebox').checked) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; save(true); }, 220);
 }
 
 /* ---------- dragging ---------- */
@@ -366,12 +379,13 @@ $('add').onclick = () => {
   changed(before);
   say('added ' + id);
 };
-async function save() {
+async function save(quiet) {
   try {
-    say('saving…');
+    if (!quiet) say('saving…');
     const r = await api('/layout', { method:'POST', headers:{'content-type':'application/json'},
       body: JSON.stringify({ name: S.name, data: S.doc }) });
-    S.dirty = false; S.undo = [];
+    S.dirty = false;
+    if (!quiet) S.undo = [];
     $('save').disabled = true;
     say('saved ' + r.widgets + ' widgets · the app reloads on its own', 'ok');
   } catch (e) {
@@ -398,8 +412,13 @@ window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault
 
 boot().then(() => {
   // deep link: /editor#<layout> or /editor#<widget id>, so a screenshot or a bug report can point at one widget
-  const h = decodeURIComponent((location.hash || '').slice(1));
+  let h = decodeURIComponent((location.hash || '').slice(1));
   if (!h) return;
+  if (h.startsWith('live:')) {                       // #live:<layout|widget> turns the overlay on too
+    $('livebox').checked = true;
+    $('livebox').dispatchEvent(new Event('change'));
+    h = h.slice(5);
+  }
   if (S.schema.layouts.indexOf(h) >= 0 && h !== S.name) load(h);
   else if (S.doc.widgets.some((w) => w.id === h)) { S.sel = h; render(); }
 }).catch((e) => say(e.message, 'err'));
