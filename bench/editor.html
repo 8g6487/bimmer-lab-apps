@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Layout editor · cluster_themes</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#14171c; --line:#232830; --ink:#dfe3ea; --dim:#8b93a1; --accent:#4c9aff; --warn:#ffb020; --bad:#ff5d5d; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font:12px/1.45 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+  #app { display:grid; grid-template-columns:238px 1fr 300px; grid-template-rows:44px 1fr; height:100%; }
+  header { grid-column:1/4; display:flex; align-items:center; gap:10px; padding:0 12px;
+    border-bottom:1px solid var(--line); background:#0e1116; }
+  header b { font-size:13px; font-weight:600; }
+  header .grow { flex:1; }
+  button, select, input, textarea { font:inherit; color:var(--ink); background:#1a1e25;
+    border:1px solid var(--line); border-radius:5px; padding:3px 7px; }
+  button { cursor:pointer; } button:hover { border-color:#3a4250; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  #status { color:var(--dim); min-width:220px; }
+  #status.err { color:var(--bad); } #status.ok { color:#57d38c; }
+  aside, #left { overflow:auto; border-right:1px solid var(--line); background:var(--panel); }
+  #right { border-right:0; border-left:1px solid var(--line); }
+  .hd { position:sticky; top:0; z-index:2; background:var(--panel); padding:8px 10px;
+    border-bottom:1px solid var(--line); font-weight:600; letter-spacing:.02em; }
+  #list { padding:4px 0; }
+  .row { display:flex; gap:6px; align-items:center; padding:2px 10px; cursor:pointer; }
+  .row:hover { background:#1b2028; }
+  .row.on { background:#1d2c42; }
+  .row .id { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .ty { color:var(--dim); font-size:11px; }
+  .row.hidden { opacity:.45; }
+  #stagewrap { position:relative; overflow:hidden; background:#07090c; }
+  #live { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none; opacity:0; transition:opacity .15s; }
+  #stagewrap.live #live { opacity:1; }
+  #stage { position:absolute; left:0; top:0; transform-origin:0 0; }
+  #stagewrap.live #stage { background:transparent; }
+  .wg { position:absolute; border:1px solid rgba(90,140,200,.35); background:rgba(30,60,110,.10);
+    overflow:hidden; cursor:move; }
+  #stagewrap.live .wg { border-color:rgba(90,140,200,.14); background:transparent; }
+  .wg .tag { position:absolute; left:0; top:0; padding:0 3px; font-size:9px; color:#9dc2ff;
+    background:rgba(8,14,22,.7); pointer-events:none; display:none; }
+  .wg.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; background:rgba(76,154,255,.10); }
+  .wg.sel .tag, .wg:hover .tag { display:block; }
+  .wg.oob { border-color:var(--bad); }
+  .wg .h { position:absolute; right:-5px; bottom:-5px; width:10px; height:10px; background:var(--accent);
+    border-radius:2px; cursor:nwse-resize; display:none; }
+  .wg.sel .h { display:block; }
+  #right .sec { padding:10px; border-bottom:1px solid var(--line); }
+  #right .sec h4 { margin:0 0 8px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+  .f { display:grid; grid-template-columns:74px 1fr; gap:6px; align-items:center; margin-bottom:6px; }
+  .f label { color:var(--dim); }
+  .f input, .f select, .f textarea { width:100%; }
+  .f textarea { min-height:52px; font-family:ui-monospace, Consolas, monospace; font-size:11px; }
+  #hint { color:var(--dim); padding:8px 10px; }
+  .kbd { border:1px solid var(--line); border-radius:3px; padding:0 3px; color:var(--dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <b>Layout editor</b>
+    <select id="which"></select>
+    <button id="revert" title="reload from disk">Revert</button>
+    <span class="grow"></span>
+    <label><input type="checkbox" id="livebox"> live</label>
+    <label title="hide widget outlines"><input type="checkbox" id="boxhide"> clean</label>
+    <label>zoom <select id="zoom">
+      <option value="fit">fit</option><option value="0.5">50%</option><option value="1">100%</option>
+    </select></label>
+    <button id="undo" disabled>Undo</button>
+    <button id="save" class="primary">Save</button>
+    <span id="status">loading…</span>
+  </header>
+
+  <div id="left">
+    <div class="hd">Widgets <span id="count" style="color:var(--dim);font-weight:400"></span></div>
+    <div id="list"></div>
+    <div class="sec" style="border-top:1px solid var(--line)">
+      <h4>Add</h4>
+      <div class="f"><select id="newtype"></select></div>
+      <button id="add" style="width:100%">Add widget</button>
+    </div>
+  </div>
+
+  <div id="stagewrap">
+    <iframe id="live" src="about:blank"></iframe>
+    <div id="stage"></div>
+  </div>
+
+  <aside id="right">
+    <div class="hd">Properties</div>
+    <div id="props"><div id="hint">Select a widget on the stage or in the list.</div></div>
+    <div class="sec">
+      <h4>Keys</h4>
+      <div id="hint2" style="color:var(--dim)">drag to move · corner to resize · arrows nudge · <span class="kbd">del</span> removes</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+'use strict';
+const S = { schema:null, name:null, doc:null, sel:null, undo:[], zoom:1, dirty:false };
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const t = await r.text();
+  let j = null; try { j = JSON.parse(t); } catch (e) { /* plain text */ }
+  if (!r.ok) throw new Error((j && j.error) || t || ('HTTP ' + r.status));
+  return j;
+}
+function say(msg, kind) { const s = $('status'); s.textContent = msg || ''; s.className = kind || ''; }
+
+/* ---------- load ---------- */
+async function boot() {
+  S.schema = await api('/schema');
+  const w = $('which');
+  S.schema.layouts.forEach((n) => { const o = el('option', null, n); o.value = n; w.appendChild(o); });
+  S.name = S.schema.current && S.schema.layouts.indexOf(S.schema.current) >= 0 ? S.schema.current : S.schema.layouts[0];
+  w.value = S.name;
+  const nt = $('newtype');
+  Object.keys(S.schema.types).sort().forEach((t) => { const o = el('option', null, t); o.value = t; nt.appendChild(o); });
+  await load(S.name);
+}
+async function load(name) {
+  say('loading ' + name + '…');
+  const j = await api('/layout?name=' + encodeURIComponent(name));
+  S.name = name; S.doc = j.data; S.sel = null; S.undo = []; S.dirty = false;
+  $('which').value = name;
+  say((j.overridden ? 'override' : 'shipped') + ' · ' + S.doc.widgets.length + ' widgets');
+  render();
+}
+
+/* ---------- render ---------- */
+function order() {
+  // the app draws by z, then by array order
+  return S.doc.widgets.map((w, i) => ({ w: w, i: i }))
+    .sort((a, b) => ((a.w.z || 0) - (b.w.z || 0)) || (a.i - b.i)).map((x) => x.w);
+}
+function render() {
+  const stage = $('stage'), wrap = $('stagewrap');
+  const bw = wrap.clientWidth, bh = wrap.clientHeight;
+  const zs = $('zoom').value;
+  S.zoom = zs === 'fit' ? Math.min(bw / 1920, bh / 720) : Number(zs);
+  stage.style.width = '1920px'; stage.style.height = '720px';
+  stage.style.transform = 'scale(' + S.zoom + ')';
+  const ox = Math.max(0, (bw - 1920 * S.zoom) / 2), oy = Math.max(0, (bh - 720 * S.zoom) / 2);
+  stage.style.left = ox + 'px'; stage.style.top = oy + 'px';
+
+  stage.textContent = '';
+  const clean = $('boxhide').checked;
+  order().forEach((w) => {
+    const d = el('div', 'wg' + (w.id === S.sel ? ' sel' : '') + (w.x + w.w > 1920 || w.y + w.h > 720 ? ' oob' : ''));
+    d.style.left = w.x + 'px'; d.style.top = w.y + 'px';
+    d.style.width = Math.max(1, w.w) + 'px'; d.style.height = Math.max(1, w.h) + 'px';
+    if (clean) { d.style.border = 'none'; d.style.background = 'none'; }
+    d.dataset.id = w.id;
+    d.appendChild(el('span', 'tag', w.id + ' · ' + w.type));
+    const h = el('div', 'h'); d.appendChild(h);
+    stage.appendChild(d);
+  });
+
+  const list = $('list'); list.textContent = '';
+  order().forEach((w) => {
+    const r = el('div', 'row' + (w.id === S.sel ? ' on' : ''));
+    r.appendChild(el('span', 'ty', w.type));
+    r.appendChild(el('span', 'id', w.id));
+    r.onclick = () => { S.sel = w.id; render(); };
+    list.appendChild(r);
+  });
+  $('count').textContent = '(' + S.doc.widgets.length + ')';
+  $('undo').disabled = !S.undo.length;
+  $('save').disabled = !S.dirty;
+  inspector();
+}
+
+/* ---------- inspector ---------- */
+const COMMON = ['id', 'type', 'x', 'y', 'w', 'h', 'z', 'conn', 'class', 'toggle'];
+function inspector() {
+  const box = $('props'); box.textContent = '';
+  const w = S.doc.widgets.find((q) => q.id === S.sel);
+  if (!w) { box.appendChild(el('div', 'hint', 'Select a widget on the stage or in the list.')); box.firstChild.id = 'hint'; return; }
+  const sec = el('div', 'sec');
+  sec.appendChild(el('h4', null, w.type + ' · ' + w.id));
+
+  const addField = (key, val, kind) => {
+    const f = el('div', 'f');
+    f.appendChild(el('label', null, key));
+    let inp;
+    if (kind === 'array' || kind === 'json') {
+      inp = el('textarea'); inp.value = JSON.stringify(val);
+    } else if (kind === 'text') {
+      inp = el('input'); inp.type = 'text'; inp.value = val == null ? '' : String(val);
+    } else if (kind === 'font') {
+      inp = el('select'); inp.appendChild(el('option', null, ''));
+      (S.schema.fonts || []).forEach((f2) => { const o = el('option', null, f2.name); o.value = f2.name; inp.appendChild(o); });
+      inp.value = val || '';
+    } else {
+      inp = el('input'); inp.type = 'number'; inp.step = 'any'; inp.value = val == null ? '' : val;
+    }
+    inp.onchange = () => {
+      const before = JSON.stringify(S.doc);
+      let v;
+      if (kind === 'array' || kind === 'json') { try { v = JSON.parse(inp.value); } catch (e) { say(e.message, 'err'); rerval(inp, val); return; } }
+      else if (kind === 'text' || kind === 'font') v = inp.value;
+      else v = inp.value === '' ? undefined : Number(inp.value);
+      if (v === undefined) delete w[key]; else w[key] = v;
+      if (key === 'id') S.sel = w.id;
+      changed(before);
+    };
+    f.appendChild(inp);
+    sec.appendChild(f);
+  };
+
+  COMMON.forEach((k) => {
+    if (w[k] === undefined && ['x','y','w','h','id','type'].indexOf(k) < 0) return;
+    addField(k, w[k], ['id','type','class','toggle','z','conn'].indexOf(k) >= 0 ? 'text' : 'num');
+  });
+  const keys = (S.schema.types[w.type] || []).map((k) => k.replace(/^\?/, ''));
+  const rest = Object.keys(w).filter((k) => COMMON.indexOf(k) < 0 && keys.indexOf(k) < 0 && k !== 'hole');
+  keys.forEach((k) => {
+    const v = w[k];
+    const kind = Array.isArray(v) ? 'array' : typeof v === 'object' && v !== null ? 'json' : typeof v === 'string' ? (k === 'font' ? 'font' : 'text') : 'num';
+    addField(k, v, kind);
+  });
+  if (w.hole) addField('hole', w.hole, 'array');
+  rest.forEach((k) => {
+    const v = w[k];
+    addField(k, v, Array.isArray(v) ? 'array' : typeof v === 'object' && v !== null ? 'json' : typeof v === 'string' ? 'text' : 'num');
+  });
+
+  if (S.schema.types[w.type] && S.schema.types[w.type].length === 0) {
+    sec.appendChild(el('div', 'hint', 'this type takes no extra keys'));
+  }
+  box.appendChild(sec);
+
+  const del = el('button', null, 'Delete widget');
+  del.className = 'danger';
+  del.style.margin = '0 10px 10px';
+  del.onclick = () => {
+    const before = JSON.stringify(S.doc);
+    S.doc.widgets = S.doc.widgets.filter((q) => q !== w);
+    S.sel = null; changed(before);
+  };
+  box.appendChild(del);
+}
+function rerval(inp, v) { inp.value = JSON.stringify(v); }
+
+function changed(before) {
+  S.undo.push(before);
+  if (S.undo.length > 60) S.undo.shift();
+  S.dirty = true;
+  render();
+}
+
+/* ---------- dragging ---------- */
+let drag = null;
+$('stage').addEventListener('pointerdown', (e) => {
+  const wg = e.target.closest('.wg');
+  if (!wg) { S.sel = null; render(); return; }
+  const w = S.doc.widgets.find((q) => q.id === wg.dataset.id);
+  if (!w) return;
+  if (S.sel !== w.id) { S.sel = w.id; render(); }
+  const resize = e.target.classList.contains('h');
+  const before = JSON.stringify(S.doc);
+  drag = { w: w, sx: e.clientX, sy: e.clientY, ox: w.x, oy: w.y, ow: w.w, oh: w.h, resize: resize, before: before };
+  e.preventDefault();
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp, { once: true });
+});
+function onMove(e) {
+  if (!drag) return;
+  const dx = (e.clientX - drag.sx) / S.zoom, dy = (e.clientY - drag.sy) / S.zoom;
+  const snap = (v) => (e.altKey ? Math.round(v) : Math.round(v));
+  if (drag.resize) {
+    drag.w.w = Math.max(1, snap(drag.ow + dx));
+    drag.w.h = Math.max(1, snap(drag.oh + dy));
+  } else {
+    drag.w.x = Math.max(-9999, snap(drag.ox + dx));
+    drag.w.y = Math.max(-9999, snap(drag.oy + dy));
+  }
+  paintOne(drag.w);
+}
+function paintOne(w) {
+  const d = Array.from(document.querySelectorAll('.wg')).find((q) => q.dataset.id === w.id);
+  if (!d) return;
+  d.style.left = w.x + 'px'; d.style.top = w.y + 'px';
+  d.style.width = Math.max(1, w.w) + 'px'; d.style.height = Math.max(1, w.h) + 'px';
+  ['x','y','w','h'].forEach((k) => {
+    const inp = document.querySelector('#props [data-k="' + k + '"]');
+    if (inp && document.activeElement !== inp) inp.value = w[k];
+  });
+}
+function onUp() {
+  window.removeEventListener('pointermove', onMove);
+  if (!drag) return;
+  const before = drag.before;
+  drag = null;
+  if (JSON.stringify(S.doc) !== before) changed(before); else render();
+}
+
+/* ---------- keys ---------- */
+window.addEventListener('keydown', (e) => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { undo(); e.preventDefault(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { save(); e.preventDefault(); return; }
+  const w = S.doc.widgets.find((q) => q.id === S.sel);
+  if (!w) return;
+  const step = e.shiftKey ? 10 : 1;
+  const before = JSON.stringify(S.doc);
+  if (e.key === 'ArrowLeft') w.x -= step;
+  else if (e.key === 'ArrowRight') w.x += step;
+  else if (e.key === 'ArrowUp') w.y -= step;
+  else if (e.key === 'ArrowDown') w.y += step;
+  else if (e.key === 'Delete' || e.key === 'Backspace') {
+    S.doc.widgets = S.doc.widgets.filter((q) => q !== w); S.sel = null;
+  } else return;
+  e.preventDefault();
+  changed(before);
+});
+function undo() {
+  if (!S.undo.length) return;
+  const snap = S.undo.pop();
+  S.doc = JSON.parse(snap);
+  S.dirty = true;
+  render();
+  say('undo (' + S.undo.length + ' left)');
+}
+
+/* ---------- add / save ---------- */
+$('add').onclick = () => {
+  const t = $('newtype').value;
+  const before = JSON.stringify(S.doc);
+  const n = S.doc.widgets.filter((q) => q.type === t).length + 1;
+  let id = t + '_' + n;
+  while (S.doc.widgets.some((q) => q.id === id)) id = t + '_' + (++n, n);
+  const w = { id: id, type: t, x: 860, y: 300, w: 200, h: 80 };
+  const font = (S.schema.fonts || [])[0];
+  const D = {
+    text: { text: '88', font: font && font.name },
+    atext: { text: '88', font: font && font.name },
+    scale: { font: font && font.name },
+    gridlabels: { font: font && font.name },
+    icon: { icon: 'fuel' },
+    sprite: { name: 'car-photo' },
+    mtach: { side: 'left', y0: 565, y8: 120, ym: 320, xm: 509, kTop: 0.98, kBot: 0.47, wBot: 18, wTop: 8, max: 7000 },
+    mdash: {},
+    sdash: { geo: [0,0,1,1], k: 1, band: [0,0,0,0], ticks: 8, fuelSeg: 0, oilSeg: 0, strip: 0, topEnd: 0 },
+    mview: { path: '', scale: 1, dial: 0, dialAng: 0, line: 0 },
+    vdash: { tach: 0, segs: 0 },
+    arc: { signal: 'rpm', min: 0, max: 7000 },
+    meter: { signal: 'coolant', min: 0, max: 130 },
+    segbar: { signal: 'fuel', max: 100 },
+    dial: { measure: 'rpm' },
+    badge: { text: 'M', font: font && font.name, tone: 'm' },
+    boxes: { boxes: [] },
+    tiles: { tiles: [] },
+    revarc: { center: [960, 360], r: 200, start: 0, sweep: 1 },
+    ribbon: { curve: [0,0,1,1], span: [0,1] },
+  }[t] || {};
+  S.doc.widgets.push(Object.assign(w, D));
+  S.sel = id;
+  changed(before);
+  say('added ' + id);
+};
+async function save() {
+  try {
+    say('saving…');
+    const r = await api('/layout', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ name: S.name, data: S.doc }) });
+    S.dirty = false; S.undo = [];
+    $('save').disabled = true;
+    say('saved ' + r.widgets + ' widgets · the app reloads on its own', 'ok');
+  } catch (e) {
+    say(e.message, 'err');
+  }
+}
+$('save').onclick = save;
+$('undo').onclick = undo;
+$('revert').onclick = () => { if (!S.dirty || confirm('Discard unsaved changes?')) load(S.name); };
+$('which').onchange = (e) => { if (!S.dirty || confirm('Discard unsaved changes?')) load(e.target.value); };
+$('zoom').onchange = render;
+$('boxhide').onchange = render;
+$('livebox').onchange = (e) => {
+  const wrap = $('stagewrap');
+  if (e.target.checked) {
+    $('live').src = '/?only=1&clean=1';
+    wrap.classList.add('live');
+    $('boxhide').checked = true;
+    render();
+  } else { wrap.classList.remove('live'); $('live').src = 'about:blank'; }
+};
+window.addEventListener('resize', () => render());
+window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+boot().then(() => {
+  // deep link: /editor#<layout> or /editor#<widget id>, so a screenshot or a bug report can point at one widget
+  const h = decodeURIComponent((location.hash || '').slice(1));
+  if (!h) return;
+  if (S.schema.layouts.indexOf(h) >= 0 && h !== S.name) load(h);
+  else if (S.doc.widgets.some((w) => w.id === h)) { S.sel = h; render(); }
+}).catch((e) => say(e.message, 'err'));
+</script>
+</body>
+</html>

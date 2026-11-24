@@ -36,6 +36,8 @@ const { fork, execFileSync } = require('child_process');
 // What the driver sees of each target (hood curve, BMW's gear box and belt light, the HUD window):
 // one source of truth, shared with the app's layout check. The page gets it in the 'hello' event.
 const visible = require('../shared/visible');
+const Layouts = require('../shared/layouts');
+const sensors = require('../shared/sensors');
 // what each effect shader asks of the KOMBI's GPU against shaders that ran or failed on cars (tools/shader_budget.js)
 const shaderBudget = require('../tools/shader_budget');
 
@@ -735,6 +737,66 @@ const web = http.createServer(async (req, res) => {
         child.send({ t: 'set', key: b.key, value: b.value });
         log('info', 'bench: setting ' + b.key + ' = ' + JSON.stringify(b.value));
         res.writeHead(204); return res.end();
+    }
+    if (req.method === 'GET' && url === '/editor') {
+        // The layout editor: same vocabulary as shared/layouts.js, writes the same override the picker writes.
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        return fs.createReadStream(path.join(__dirname, 'editor.html')).pipe(res);
+    }
+    if (req.method === 'GET' && url === '/schema') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({
+            app: APP_ID,
+            size: [1920, 720],
+            types: Layouts.TYPES,
+            classes: Layouts.CLASSES,
+            sensors: sensors.LIST.map((s) => ({ id: s.id, name: s.name, cat: s.cat })),
+            fonts: fontFiles(),
+            layouts: (function () {
+                const out = [];
+                try {
+                    fs.readdirSync(path.join(APP_DIR, 'hud', 'layouts')).forEach((f) => {
+                        if (!/\.json$/.test(f) || /-/.test(f)) return;
+                        out.push(f.replace(/\.json$/, ''));
+                    });
+                } catch (e) { /* none */ }
+                return out.sort();
+            })(),
+            current: currentLayoutName()
+        }));
+    }
+    if (req.method === 'GET' && url === '/layout') {
+        const params = {};
+        (req.url.split('?')[1] || '').split('&').forEach((kv) => {
+            const i = kv.indexOf('='); if (i > 0) params[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+        });
+        const name = params.name || currentLayoutName();
+        const lay = name ? readLayout(name) : null;
+        if (!lay) { res.writeHead(404); return res.end('no layout'); }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({
+            name: name, file: lay.file, overridden: lay.file.indexOf(DATA_DIR) === 0, data: lay.data
+        }));
+    }
+    if (req.method === 'POST' && url === '/layout') {
+        // {name, data}: validated with the app's own rules, then written to <data>/layouts/, which the app watches.
+        const b = await body(req);
+        const name = String(b.name || currentLayoutName() || '');
+        if (!/^[a-z0-9_-]+$/i.test(name)) { res.writeHead(400); return res.end('bad layout name'); }
+        if (!b.data || typeof b.data !== 'object') { res.writeHead(400); return res.end('no data'); }
+        try {
+            const probe = new Layouts(DATA_DIR, { info: () => {}, warn: () => {} }, [1920, 720]);
+            probe._validate(b.data, name);
+        } catch (e) {
+            res.writeHead(422, { 'content-type': 'application/json' });
+            return res.end(JSON.stringify({ error: e.message }));
+        }
+        const override = path.join(DATA_DIR, 'layouts', name + '.json');
+        fs.mkdirSync(path.dirname(override), { recursive: true });
+        fs.writeFileSync(override, JSON.stringify(b.data, null, 2));
+        log('info', 'bench: saved ' + (b.data.widgets || []).length + ' widgets into ' + path.basename(override));
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ name: name, widgets: (b.data.widgets || []).length, file: override }));
     }
     res.writeHead(404); res.end();
 });

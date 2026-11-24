@@ -147,3 +147,7 @@ class Layouts {
 }
 
 module.exports = Layouts;
+// the editor (bench/editor.html) needs the same vocabulary the validator uses, so it can never offer a type or a
+// key the app would refuse
+Layouts.TYPES = TYPES;
+Layouts.CLASSES = CLASSES;
