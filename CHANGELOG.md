@@ -2,6 +2,10 @@
 
 Newest first. Dates are when the build was pushed.
 
+## Nov 22 2026
+
+- **Cluster Themes 0.19.9, HUD Widgets 0.15.8:** M view's scale lines are now perfectly round curves (before, they bent in small corners you could see on the car). The holiday lights were redone on every theme: they never cross a theme's own lines, hang the same on both sides, and leave out the short pieces that looked broken. On M view they hang between the two dials under the M stripes, and on Vector they no longer run into the rev counter or the music panel. Not yet tested on a car.
+
 ## Nov 21 2026
 
 - **Cluster Themes 0.19.8:** Cruise's clock, range and outside temperature along the bottom are now as big as the fuel and oil figures, about twice their old height, so they read at a glance (issue #33). Not yet tested on a car.
