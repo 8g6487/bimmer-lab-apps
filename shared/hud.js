@@ -2267,6 +2267,7 @@ class HudApp {
             c.uniform(ref, 'u_style', [w.style === 'm3' ? 1 : 0]);   // the M3's spine + tick ladder instead of the M8's bezel
             c.uniform(ref, 'u_inner', [isNum(w.inner) ? w.inner : 180]);   // >180 = a slimmer band
             c.uniform(ref, 'u_band', [isNum(w.band) ? w.band : 9]);   // the M3 cell's width px
+            c.uniform(ref, 'u_fillOnly', [w.fillOnly ? 1 : 0]);
             x.gauges = [['u_gaugeL', L], ['u_gaugeR', R]];
             x.bars = bars;
         } else if (w.type === 'mtach') {

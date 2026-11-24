@@ -469,6 +469,7 @@ uniform float u_segSlant; // px each segment leans
 uniform vec4 u_hole;      // the map window x, y, w, h px, already inset (w 0 = none): cut see-through over the map
 uniform float u_holeR;    // its corner radius px
 uniform float u_style;    // 0 = the M8's hatched bezel, 1 = the M3's spine and tick ladder
+uniform float u_fillOnly; // 1 = draw only the live tank and level bar (the bracket is a sprite)
 uniform float u_inner;    // the gauge band's inner circle (180 = the M8's fat wedge, larger = slimmer)
 uniform float u_band;     // the M3 cell's width px (a rare type: lowercase comments only)
 
@@ -623,9 +624,10 @@ vec4 gauge(vec2 p, vec4 g, float zones, vec4 c) {
             float gt = clamp((q.y - yv) * k * 0.30 + 0.72, 0.0, 1.0);
             float hatch2 = step(0.5, fract(atan(q.y, q.x) * 26.0));
             vec3 tank = mix(vec3(0.40, 0.42, 0.46), vec3(0.88, 0.90, 0.93), gt);
+            // level only: the bracket's outline is the baked sprite, so the frame must not be drawn here
             c = over(vec4(tank, (0.42 + 0.14 * hatch2) * a * lit), c);
             c = over(vec4(u_red, a * cov(abs(q.y - yv) * k - 4.2)), c);
-            c = over(vec4(0.90, 0.92, 0.96, 0.92 * cov(abs(inside) * k - 0.9)), c);
+            if (u_fillOnly < 0.5) c = over(vec4(0.90, 0.92, 0.96, 0.92 * cov(abs(inside) * k - 0.9)), c);
             // the reference's bracket carries no ladder at all
         } else {
             vec4 dark = vec4(0.55, 0.57, 0.63, 0.16);
@@ -756,11 +758,13 @@ void main() {
         if (t >= 0.0 && t <= 1.0) {
             float yn2 = y0 - u_value * (y0 - y8);       // the marker's height for this rpm
             float inBand2 = clamp(d + 0.5, 0.0, 1.0) * clamp(w - d + 0.5, 0.0, 1.0);
-            float dmn = abs(p.y - yn2);
-            vec4 g2 = vec4(u_red, 0.85 * exp(-dmn / 22.0));
-            g2 = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.30 * cov(dmn - 6.0)), cov(dmn - 17.0)), g2);
-            if (u_shiftNow > 0.5) g2 = vec4(u_red, 0.75 * exp(-dmn / 18.0));
-            c = vec4(g2.rgb, g2.a * inBand2);
+            float below = step(yn2, p.y);                       // 1 below the marker, 0 above
+            vec4 g2 = vec4(0.26, 0.28, 0.32, 0.78 * below * inBand2);   // the grey level, filled to the rpm
+            float dmn = p.y - yn2;
+            float bar = cov(abs(dmn) - 6.0);                    // the reference's soft red bar
+            g2 = over(vec4(mix(u_red, vec3(1.0, 0.45, 0.4), 0.25 * cov(abs(dmn) - 3.0)),
+                           (bar + 0.30 * exp(-abs(dmn) / 11.0)) * inBand2), g2);
+            c = g2;
         }
         gl_FragColor = c;
         return;

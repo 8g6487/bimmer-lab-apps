@@ -50,6 +50,21 @@ def main():
 
     BOX_GL = (240, 560, 560, 920)      # the fuel bracket, reference pixels
     BOX_GR = (2400, 560, 2720, 920)     # the oil/temperature bracket
+    def hole(im):
+        """The gauge artwork's tank and level bar must be live, so they are cut out of the sprite: the frame,
+        the numerals and the icon are bright white, the tank is mid grey and the bar is red."""
+        im = im.convert('RGBA'); px = im.load()
+        for y in range(im.height):
+            for x in range(im.width):
+                r, g, b, a = px[x, y]
+                if not a:
+                    continue
+                red = r - g > 22 and r - b > 22
+                greyish = 90 < max(r, g, b) < 205 and (max(r, g, b) - min(r, g, b)) < 26
+                if red or greyish:
+                    px[x, y] = (r, g, b, 0)
+        return im
+
     for box, name in ((BOX, 'tach-m3-l'), (BOX_R, 'tach-m3-r'), (BOX_GL, 'gauge-m3-l'), (BOX_GR, 'gauge-m3-r')):
         im = ref.crop(box)
         w = int(round(im.width * S)); h = int(round(im.height * S))
