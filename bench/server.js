@@ -818,7 +818,35 @@ function renderDoc(md) {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return res.end(renderDoc(md));
     }
-    if (req.method === 'GET' && url === '/editor') {
+    // POST /sprite  {name, png(base64), key, tol, max}  -> bake a sprite from an uploaded picture
+  if (req.method === 'POST' && url === '/sprite') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 24e6) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const q = JSON.parse(body);
+        const name = String(q.name || '').replace(/[^a-z0-9._-]/gi, '-').toLowerCase() || ('up' + Date.now());
+        const buf = Buffer.from(String(q.png || '').replace(/^data:[^,]*,/, ''), 'base64');
+        if (!buf.length) throw new Error('empty picture');
+        const os = require('os');
+        const tmp = path.join(os.tmpdir(), 'sprite-' + name + '.png');
+        fs.writeFileSync(tmp, buf);
+        const tool = path.join(__dirname, '..', 'design', 'mk_sprite.py');
+        const args = [tool, tmp, '--name', name, '--key', String(q.key || 'black'),
+          '--tol', String(q.tol == null ? 26 : q.tol), '--max', String(q.max == null ? 256 : q.max)];
+        require('child_process').execFileSync('python', args, { stdio: 'pipe' });
+        const j = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'hud', 'sprites', name + '.json'), 'utf8'));
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ name: name, w: j.w, h: j.h, bytes: j.w * j.h * 4, packed: true }));
+      } catch (e) {
+        res.writeHead(500, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: String(e.message || e) }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && url === '/editor') {
         // The layout editor: same vocabulary as shared/layouts.js, writes the same override the picker writes.
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return fs.createReadStream(path.join(__dirname, 'editor.html')).pipe(res);

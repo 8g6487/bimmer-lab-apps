@@ -111,6 +111,11 @@
       <h4>Add a widget</h4>
       <div class="f"><select id="newtype"></select></div>
       <button id="add" style="width:100%">Add widget</button>
+      <button id="upload" style="width:100%;margin-top:6px" title="bake a picture into a sprite and place it">Upload picture…</button>
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" style="display:none">
+      <div class="f" style="margin-top:6px"><label>key</label>
+        <select id="upkey"><option value="black">black bg</option><option value="luma">luma mask</option><option value="none">none</option></select>
+      </div>
     </div>
     <div id="list"></div>
   </div>
@@ -469,6 +474,32 @@ function undo() {
   render();
   say('undo (' + S.undo.length + ' left)');
 }
+
+/* ---------- upload a picture as a sprite ---------- */
+// A picture becomes data: the bench bakes it with design/mk_sprite.py, then we drop a sprite widget that
+// points at the new file. That is why a rebuild+restart follows — the app serves the packed sprites.
+$('upload').onclick = () => $('file').click();
+$('file').onchange = () => {
+  const f = $('file').files && $('file').files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = async () => {
+    try {
+      say('baking ' + f.name + '…');
+      const nm = f.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'upload';
+      const r = await api('/sprite', { method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ name: nm, png: fr.result, key: $('upkey').value, max: 256 }) });
+      const before = JSON.stringify(S.doc);
+      const id = nm + '_1';
+      S.doc.widgets.push({ id: id, type: 'sprite', name: r.name, x: 860, y: 300, w: Math.min(r.w, 320), h: Math.min(r.h, 320), z: 10 });
+      S.sel = id;
+      changed(before);
+      say('sprite ' + r.name + ' ' + r.w + 'x' + r.h + ' · run build.py + restart the app to see it', 'ok');
+    } catch (e) { say(e.message, 'err'); }
+    $('file').value = '';
+  };
+  fr.readAsDataURL(f);
+};
 
 /* ---------- add / save ---------- */
 $('add').onclick = () => {
