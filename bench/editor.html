@@ -142,6 +142,22 @@ async function load(name) {
   $('which').value = name;
   say((j.overridden ? 'override' : 'shipped') + ' · ' + S.doc.widgets.length + ' widgets');
   render();
+  // The plate is the app, and the app shows whatever "hudLayout" says — so switching here has to switch
+  // there too, otherwise the picture keeps the layout it was last told to draw.
+  showInApp(name);
+}
+async function showInApp(name) {
+  try {
+    // "byMode" (SPORT/COMFORT/ECO PRO each pick their own theme) overrides "hudLayout" — clear it, or the
+    // app would keep drawing whichever theme the drive mode selects.
+    const post = (key, value) => api('/setting', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ key:key, value:value }) });
+    await post('byMode', false);
+    await post('hudLayout', name);
+    setTimeout(mountPlate, 400);
+  } catch (e) {
+    // the app is not running; the boxes still edit fine
+  }
 }
 
 /* ---------- render ---------- */
