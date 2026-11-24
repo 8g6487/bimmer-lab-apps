@@ -90,12 +90,12 @@
 
   <div id="left">
     <div class="hd">Widgets <span id="count" style="color:var(--dim);font-weight:400"></span></div>
-    <div id="list"></div>
     <div class="sec" style="border-top:1px solid var(--line)">
-      <h4>Add</h4>
+      <h4>Add a widget</h4>
       <div class="f"><select id="newtype"></select></div>
       <button id="add" style="width:100%">Add widget</button>
     </div>
+    <div id="list"></div>
   </div>
 
   <div id="stagewrap">
@@ -452,6 +452,14 @@ $('add').onclick = () => {
     revarc: { center: [960, 360], r: 200, start: 0, sweep: 1 },
     ribbon: { curve: [0,0,1,1], span: [0,1] },
   }[t] || {};
+  // layouts.js requires every whitelisted key (unless prefixed "?"), and the table above only covers the
+  // keys whose value actually matters. Fill the rest with a neutral value so Add never saves a 422.
+  const need = (S.schema.types[t] || []).map((k) => k.replace(/^\?/, ''));
+  need.forEach((k) => {
+    if (k in D || k in w && k !== 'type' && k !== 'id') { if (!(k in D)) return; }
+    if (k in w) return;
+    D[k] = k === 'color' ? [236, 240, 244] : k === 'font' ? ((S.schema.fonts || [])[0] || {}).name : '';
+  });
   S.doc.widgets.push(Object.assign(w, D));
   S.sel = id;
   changed(before);
