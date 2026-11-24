@@ -60,6 +60,9 @@
   .f textarea { min-height:52px; font-family:ui-monospace, Consolas, monospace; font-size:11px; }
   #hint { color:var(--dim); padding:8px 10px; }
   .kbd { border:1px solid var(--line); border-radius:3px; padding:0 3px; color:var(--dim); }
+
+#howto{color:#9fb4cc;text-decoration:none;font-size:12px;padding:5px 9px;border:1px solid #263041;border-radius:6px}
+#howto:hover{color:#e6ecf4;border-color:#3b4a61}
 </style>
 </head>
 <body>
@@ -80,7 +83,8 @@
       </select>
       <button id="zoomin" title="zoom in (Ctrl +)">+</button></label>
     <button id="undo" disabled>Undo</button>
-    <button id="save" class="primary">Save</button>
+    <a id="howto" href="/howto" target="_blank" title="how to cut a widget out of a reference picture">? how&nbsp;to</a>
+        <button id="save" class="primary">Save</button>
     <span id="status">loading…</span>
   </header>
 

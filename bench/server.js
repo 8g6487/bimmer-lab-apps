@@ -738,6 +738,86 @@ const web = http.createServer(async (req, res) => {
         log('info', 'bench: setting ' + b.key + ' = ' + JSON.stringify(b.value));
         res.writeHead(204); return res.end();
     }
+// A deliberately small markdown subset (headings, tables, fenced code, lists, bold, inline code): the only
+// document it has to render is design/HOWTO-crop.md.
+function renderDoc(md) {
+    const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const inline = (t) => esc(t)
+        .replace(/`([^`]+)`/g, (m, c) => '<code>' + c + '</code>')
+        .replace(/\*\*([^*]+)\*\*/g, (m, c) => '<b>' + c + '</b>');
+    const out = [];
+    const lines = md.split(/\r?\n/);
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        if (/^```/.test(line)) {
+            const buf = [];
+            i++;
+            while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+            i++;
+            out.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>');
+            continue;
+        }
+        const h = /^(#{1,4})\s+(.*)$/.exec(line);
+        if (h) {
+            const n = h[1].length;
+            out.push('<h' + n + '>' + inline(h[2]) + '</h' + n + '>');
+            i++;
+            continue;
+        }
+        if (/^\|/.test(line) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || '')) {
+            const cells = (r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+            const head = cells(line);
+            i += 2;
+            const body = [];
+            while (i < lines.length && /^\|/.test(lines[i])) body.push(cells(lines[i++]));
+            out.push('<table><thead><tr>' + head.map((c) => '<th>' + inline(c) + '</th>').join('') +
+                '</tr></thead><tbody>' + body.map((r) => '<tr>' + r.map((c) => '<td>' + inline(c) + '</td>').join('') +
+                '</tr>').join('') + '</tbody></table>');
+            continue;
+        }
+        if (/^\s*[-*]\s+/.test(line)) {
+            const items = [];
+            while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*[-*]\s+/, ''));
+            out.push('<ul>' + items.map((t) => '<li>' + inline(t) + '</li>').join('') + '</ul>');
+            continue;
+        }
+        if (line.trim() === '') { i++; continue; }
+        const para = [];
+        while (i < lines.length && lines[i].trim() !== '' && !/^(#{1,4}\s|```|\||\s*[-*]\s)/.test(lines[i])) {
+            para.push(lines[i++]);
+        }
+        out.push('<p>' + inline(para.join(' ')) + '</p>');
+    }
+    return '<!doctype html><meta charset="utf-8"><title>How to make a widget</title>' +
+        '<style>' +
+        'body{background:#0b0d10;color:#cfd6e0;font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+        'margin:0;padding:28px 32px 64px;max-width:980px}' +
+        'h1{font-size:22px;margin:0 0 18px;color:#f2f5f9}h2{font-size:16px;margin:26px 0 8px;color:#e6ecf4;' +
+        'border-top:1px solid #1d232c;padding-top:16px}h3{font-size:14px;margin:18px 0 6px;color:#cbd5e1}' +
+        'a{color:#6ea8fe}code{background:#161b22;border:1px solid #232a33;border-radius:3px;padding:1px 4px;' +
+        'font-family:ui-monospace,Consolas,monospace;font-size:12.5px}' +
+        'pre{background:#11151b;border:1px solid #1f262f;border-radius:6px;padding:10px 12px;overflow:auto}' +
+        'pre code{background:none;border:0;padding:0;font-size:12.5px;color:#d5dde8}' +
+        'table{border-collapse:collapse;margin:10px 0;font-size:13px}' +
+        'td,th{border:1px solid #232b35;padding:5px 9px;text-align:left;vertical-align:top}' +
+        'th{background:#151b23;color:#e6ecf4}ul{margin:8px 0 8px 20px;padding:0}li{margin:3px 0}' +
+        'p{margin:8px 0}' +
+        '</style><body>' + out.join('\n') + '</body>';
+}
+
+    if (req.method === 'GET' && url === '/howto') {
+        // The written guide lives in design/HOWTO-crop.md so there is one copy; this renders it.
+        let md;
+        try {
+            md = fs.readFileSync(path.join(__dirname, '..', 'design', 'HOWTO-crop.md'), 'utf8');
+        } catch (e) {
+            res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+            return res.end('design/HOWTO-crop.md not found');
+        }
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        return res.end(renderDoc(md));
+    }
     if (req.method === 'GET' && url === '/editor') {
         // The layout editor: same vocabulary as shared/layouts.js, writes the same override the picker writes.
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
