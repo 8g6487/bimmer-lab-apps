@@ -782,14 +782,20 @@ void main() {
         float yn = y0 - u_value * (y0 - y8);
         vec4 g = vec4(0.62, 0.67, 0.74, mix(0.42, 0.06, across));          // empty glass (bright at the outer edge, as the M8's)
         if (u_style > 0.5) {
-            // the reference's blade: a glossy grey band between two thin bright outlines, black beyond
+            // The reference's blade, redrawn: a silver sliver just inside the rim that turns near-black by
+            // a fifth of the width, then a flat dark field. Everything else (rim, ticks, red, foot) is
+            // painted afterwards, on top, so no part of the path is ever erased.
             float tt = clamp(d / max(w, 1.0), 0.0, 1.0);
-            vec3 band = mix(vec3(0.72, 0.75, 0.80), vec3(0.16, 0.17, 0.20), tt);
-            g = vec4(band, mix(0.22, 0.92, tt));
+            vec3 glass = mix(vec3(0.62, 0.65, 0.69), vec3(0.30, 0.32, 0.36), smoothstep(0.0, 0.06, tt));
+            glass = mix(glass, vec3(0.055, 0.06, 0.07), smoothstep(0.06, 0.24, tt));
+            glass = mix(glass, vec3(0.02, 0.022, 0.03), smoothstep(0.45, 0.95, tt));
+            g = vec4(glass, 1.0);
         }
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
-        // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it
-        if (p.y > y0 - 20.0) g = over(vec4(0.7, 0.72, 0.78, 0.22), g);
+        // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it. The M3's is the
+        // reference's panel — solid grey, framed by the blade's own edges plus a bright top line.
+        if (p.y > y0 - 20.0) g = over(u_style > 0.5 ? vec4(0.52, 0.55, 0.60, 0.92)
+                                                    : vec4(0.7, 0.72, 0.78, 0.22), g);
         g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
         // the marker: a red block at the rpm with a glow either side of it
         float dm = abs(p.y - yn);

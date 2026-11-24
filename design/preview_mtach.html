@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>MTACH preview</title>
+<style>
+  html, body { margin: 0; background: #06080a; color: #9aa4b0; font: 12px/1.4 ui-monospace, monospace; }
+  canvas { display: block; }
+</style>
+<!--
+  Draws the MTACH shader straight from ../../shared/shaders.js, without the bench.
+
+  The bench round trip is: edit -> build.py (packs the JS) -> POST /restart -> wait for the
+  app -> screenshot.  That is ~30 s per try.  This page recompiles the same GLSL in one frame, so
+  the loop becomes: edit shaders.js -> reload.
+
+    chrome --headless=new --screenshot=out.png --window-size=460,1060 \
+      "file:///.../design/preview_mtach.html?w=2&h=8&t=0.55"
+
+  Query keys (all optional):
+    w, h    canvas size in paused px (default 440 x 1040)
+    y0,y8   the layer's y at 0 rpm / at max (default 940 / 120)
+    xm      outer-edge x at the bend (default 96)
+    top,bot the slopes above / below the bend (default 0.98 / 0.47)
+    round   bend roundness px (default 90)
+    wb,wt   blade width at 0 rpm / at max (default 26 / 9)
+    bend    extra width at the bend (default 22)
+    max     scale top in rpm/1000 (default 7)
+    v       needle 0..1 (default 0.35)
+    red     redline 0..1 (default 0.93)
+    style   1 = M3, 0 = M8 (default 1)
+-->
+<canvas id="c"></canvas>
+<script>
+const q = new URLSearchParams(location.search);
+const num = (k, d) => (q.has(k) ? parseFloat(q.get(k)) : d);
+
+const W = num('w', 440), H = num('h', 1040);
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+cv.style.width = W + 'px'; cv.style.height = H + 'px';
+
+const gl = cv.getContext('webgl', { premultipliedAlpha: false, antialias: true });
+if (!gl) { document.body.insertAdjacentText('beforeend', 'no webgl'); }
+
+// Pull the shader source out of shared/shaders.js so this always previews what the app compiles.
+async function mtach() {
+  // file:// pages cannot fetch, so the generator (preview_mtach.py) inlines the source here
+  if (window.MTACH_SRC) return window.MTACH_SRC;
+  const res = await fetch('../../shared/shaders.js');
+  const src = await res.text();
+  const m = src.match(/const MTACH = `([\s\S]*?)`;/);
+  if (!m) throw new Error('MTACH not found');
+  return m[1];
+}
+
+const VERT = `
+attribute vec2 p;
+varying vec2 v_uv;
+void main() {
+  v_uv = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5);   // (0,0) is the top-left, as the layer has it
+  gl_Position = vec4(p, 0.0, 1.0);
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    document.body.insertAdjacentHTML('beforeend',
+      '<pre style="color:#f66;white-space:pre-wrap">' + gl.getShaderInfoLog(s) + '</pre>');
+    throw new Error(gl.getShaderInfoLog(s));
+  }
+  return s;
+}
+
+(async () => {
+  const fs = await mtach();
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    document.body.insertAdjacentHTML('beforeend',
+      '<pre style="color:#f66">' + gl.getProgramInfoLog(prog) + '</pre>');
+    return;
+  }
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const u = (n, v) => { const l = gl.getUniformLocation(prog, n); if (l) gl.uniform1f(l, v); };
+  const u2 = (n, a, b) => { const l = gl.getUniformLocation(prog, n); if (l) gl.uniform2f(l, a, b); };
+  const u3 = (n, a, b, c) => { const l = gl.getUniformLocation(prog, n); if (l) gl.uniform3f(l, a, b, c); };
+  const u4 = (n, a, b, c, d) => { const l = gl.getUniformLocation(prog, n); if (l) gl.uniform4f(l, a, b, c, d); };
+
+  const y0 = num('y0', 940), y8 = num('y8', 120);
+  u2('u_size', W, H);
+  u('u_side', num('side', 0));
+  u4('u_geoA', y0, y8, num('ym', (y0 + y8) * 0.5), num('xm', 96));
+  u3('u_geoB', num('top', 0.98), num('bot', 0.47), num('round', 90));
+  u3('u_wid', num('wb', 26), num('wt', 9), num('bend', 22));
+  u('u_ticks', num('max', 7));
+  u('u_value', num('v', 0.35));
+  u('u_orange', num('orange', 0.80));
+  u('u_redFrom', num('red', 0.93));
+  u('u_shiftNow', 0);
+  u('u_style', num('style', 1));
+  u3('u_red', 0.86, 0.06, 0.10);
+
+  gl.viewport(0, 0, W, H);
+  gl.clearColor(0.024, 0.031, 0.039, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  document.title = 'ok';
+})().catch(e => { document.title = 'err'; console.error(e); });
+</script>
+</html>
