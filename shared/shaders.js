@@ -789,13 +789,23 @@ void main() {
             vec3 glass = mix(vec3(0.62, 0.65, 0.69), vec3(0.30, 0.32, 0.36), smoothstep(0.0, 0.06, tt));
             glass = mix(glass, vec3(0.055, 0.06, 0.07), smoothstep(0.06, 0.24, tt));
             glass = mix(glass, vec3(0.02, 0.022, 0.03), smoothstep(0.45, 0.95, tt));
+            // the M view's rev band, inside the glass where it belongs: a light sheet below the needle that
+            // darkens towards the inner edge
+            float ynM = y0 - u_value * (y0 - y8);
+            float belowM = step(ynM, p.y);
+            glass = mix(glass, mix(vec3(0.62, 0.65, 0.69), vec3(0.26, 0.28, 0.31), tt), belowM * 0.92);
             g = vec4(glass, 1.0);
         }
         if (p.y > yn && u_style < 0.5) g = u_shiftNow > 0.5 ? vec4(u_red * 0.8, 0.6) : vec4(mix(vec3(0.86, 0.88, 0.92), vec3(0.6, 0.63, 0.68), across), mix(0.34, 0.22, across));
         // the foot: the bottom 20 px as an outlined grey block, as the M8 draws it. The M3's is the
         // reference's panel — solid grey, framed by the blade's own edges plus a bright top line.
-        if (p.y > y0 - 20.0) g = over(u_style > 0.5 ? vec4(0.52, 0.55, 0.60, 0.92)
-                                                    : vec4(0.7, 0.72, 0.78, 0.22), g);
+        if (p.y > y0 - (u_style > 0.5 ? 26.0 : 20.0))
+            g = over(u_style > 0.5 ? vec4(0.50, 0.53, 0.58, 0.95) : vec4(0.7, 0.72, 0.78, 0.22), g);
+        if (u_style > 0.5) {
+            float fy = p.y - (y0 - 26.0);
+            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(fy) - 1.0)), g);        // its top rule
+            g = over(vec4(0.93, 0.95, 0.98, 0.9 * cov(abs(p.y - (y0 - 1.5)) - 1.0)), g);  // and its floor
+        }
         g = over(vec4(0.9, 0.92, 0.95, 0.7 * cov(min(abs(p.y - (y0 - 19.0)), abs(p.y - (y0 - 1.5))) - 0.8)), g);
         // the marker: a red block at the rpm with a glow either side of it
         float dm = abs(p.y - yn);
@@ -827,34 +837,30 @@ void main() {
         // the M3's marks: a short bright bar inside the edge, long on every 2000 rpm
         float major = 1.0 - mod(kk, 2.0);
         if (kk >= 0.0 && kk <= u_ticks) {
-            float wid = mix(1.2, 1.8, major);
-            float reach = mix(12.0, 18.0, major);
+            float wid = mix(1.5, 2.2, major);
+            float reach = mix(13.0, 20.0, major);
             float ty = abs(p.y - yk) - wid;
-            // the reference cuts each tick out of the outer edge: erase the white edge across the tick, then
-            // run the bright mark from just inside it into the glass, so the edge breaks at every 1000
-            c = over(vec4(0.0, 0.0, 0.0, cov(ty * 1.6) * cov(abs(d) - 1.3)), c);
-            c = over(vec4(0.93, 0.95, 0.98, cov(ty) * clamp(d - 2.4, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
+            // the reference's marks are teeth ON the rim: each one reaches 4 px outside the bright edge and
+            // a long way in, and the edge runs unbroken underneath them
+            c = over(vec4(0.93, 0.95, 0.98,
+                          cov(ty) * clamp(d + 4.0, 0.0, 1.0) * clamp(reach - d, 0.0, 1.0)), c);
         }
     } else if (kk >= 0.0 && kk <= u_ticks && d > -2.0 && d < 24.0) {
         float ty8 = abs(p.y - yk) - 1.5;
         c = over(vec4(0.93, 0.95, 0.98, cov(ty8)), c);
     }
     if (u_style > 0.5) {
-        // The reference does not paint a band inside the glass: its rim is ONE bright hairline, and the redline
-        // and the orange markers are simply segments of that same line. So draw the rim last and recolour it.
         float yin = clamp(p.y - y8, 0.0, 1.0) * clamp(y0 - p.y, 0.0, 1.0);
-        float redT = (t >= u_redFrom && t <= 1.0) ? yin : 0.0;
-        float o1 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.055)));
-        float o2 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.115)));
-        float o3 = 1.0 - smoothstep(0.0, 0.020, abs(t - (u_redFrom - 0.175)));
-        float orn = clamp(o1 + o2 + o3, 0.0, 1.0) * yin;
-        float halfw = mix(1.35, 4.1, redT);                       // the redline segment is a little fatter
-        halfw = max(halfw, 3.4 * orn);                            // and the orange marks are fat too
-        float rim = cov(abs(d - 1.5) - halfw) * yin;
-        vec3 rc = vec3(0.93, 0.95, 0.98);
-        rc = mix(rc, u_red, redT);
-        rc = mix(rc, vec3(1.0, 0.66, 0.10), orn);
-        c = over(vec4(rc, rim), c);
+        // the redline: a band just inside the rim from u_redFrom to the top, and two orange dashes before it
+        float redT = (t >= u_redFrom && t <= 1.0) ? 1.0 : 0.0;
+        float rb = redT * clamp(d - 3.0, 0.0, 1.0) * clamp(11.0 - d, 0.0, 1.0) * yin;
+        c = over(vec4(u_red, 0.95 * rb), c);
+        float o1 = 1.0 - smoothstep(0.0, 0.016, abs(t - (u_redFrom - 0.062)));
+        float o2 = 1.0 - smoothstep(0.0, 0.016, abs(t - (u_redFrom - 0.125)));
+        float orn = clamp(o1 + o2, 0.0, 1.0) * yin * clamp(d - 4.0, 0.0, 1.0) * clamp(10.0 - d, 0.0, 1.0);
+        c = over(vec4(1.0, 0.66, 0.10, 0.95 * orn), c);
+        // one unbroken bright rim on top of everything
+        c = over(vec4(0.93, 0.95, 0.98, cov(abs(d - 1.6) - 1.5) * yin), c);
     }
     gl_FragColor = c;
 }
