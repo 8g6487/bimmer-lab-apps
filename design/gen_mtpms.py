@@ -198,9 +198,7 @@ def main():
     for x in d['widgets']:
         if x['type'] == 'mdash':
             x['style'] = 'm3'
-            # the level inside the baked bracket is not live yet: the shader's gauge geometry has to be
-            # re-fitted to the sprite's arc first (see HANDOFF), so nothing is drawn over it for now
-            x['gaugeL'] = {'cx': 0, 'cy': 0, 'r': 0}
+            x['gaugeL'] = {'cx': 0, 'cy': 0, 'r': 0}   # the bracket and its level are the sprite for now
             x['gaugeR'] = {'cx': 0, 'cy': 0, 'r': 0}
             x['rpmMax'] = 7000                   # so _redMarks() puts the redline at 6500/7000, like the reference's
             x['band'] = 24                       # the reference's bracket is a wide band, not a hairline                          # the M3's slim crescent, px                      # the M3's bracket: thin spine + tick ladder, no chrome bezel
@@ -231,8 +229,8 @@ def main():
         {'id': 'tach_l', 'type': 'sprite', 'name': 'tach-m3-l', 'x': 470, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         {'id': 'tach_r', 'type': 'sprite', 'name': 'tach-m3-r', 'x': 1227, 'y': 60, 'w': 223, 'h': 531, 'z': 2},
         # the fuel and oil brackets are the reference's artwork too (level is baked; see HANDOFF)
-        {'id': 'gauge_l', 'type': 'sprite', 'name': 'gauge-m3-l', 'x': 157, 'y': 367, 'w': 210, 'h': 236, 'z': 2},
-        {'id': 'gauge_r', 'type': 'sprite', 'name': 'gauge-m3-r', 'x': 1573, 'y': 367, 'w': 210, 'h': 236, 'z': 2},
+        {'id': 'gauge_l', 'type': 'sprite', 'name': 'gauge-m3-l', 'x': 157, 'y': 367, 'w': 151, 'h': 187, 'z': 2},
+        {'id': 'gauge_r', 'type': 'sprite', 'name': 'gauge-m3-r', 'x': 1573, 'y': 367, 'w': 151, 'h': 187, 'z': 2},
         # … and the live part on top of it: the M8's red marker/glow, nothing else (u_style 2)
         {'id': 'tach_l_needle', 'type': 'mtach', 'side': 'left', 'z': 3, 'x': 470, 'y': 60, 'w': 223, 'h': 531,
          'ym': 320, 'xm': 509, 'kTop': 0.98, 'kBot': 0.47, 'wBot': 26, 'wTop': 9, 'y0': 120, 'y8': 565,
