@@ -71,9 +71,14 @@
     <span class="grow"></span>
     <label><input type="checkbox" id="livebox"> live</label>
     <label title="hide widget outlines"><input type="checkbox" id="boxhide"> clean</label>
-    <label>zoom <select id="zoom">
-      <option value="fit">fit</option><option value="0.5">50%</option><option value="1">100%</option>
-    </select></label>
+    <label>zoom <button id="zoomout" title="zoom out (Ctrl -)">−</button>
+      <select id="zoom">
+        <option value="fit">fit</option><option value="0.25">25%</option><option value="0.33">33%</option>
+        <option value="0.5">50%</option><option value="0.67">67%</option><option value="0.75">75%</option>
+        <option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option>
+        <option value="2">200%</option><option value="custom">—</option>
+      </select>
+      <button id="zoomin" title="zoom in (Ctrl +)">+</button></label>
     <button id="undo" disabled>Undo</button>
     <button id="save" class="primary">Save</button>
     <span id="status">loading…</span>
@@ -106,7 +111,7 @@
 
 <script>
 'use strict';
-const S = { schema:null, name:null, doc:null, sel:null, undo:[], zoom:1, dirty:false };
+const S = { schema:null, name:null, doc:null, sel:null, undo:[], zoom:1, zoomMode:'fit', dirty:false };
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
@@ -148,8 +153,8 @@ function order() {
 function render() {
   const stage = $('stage'), wrap = $('stagewrap');
   const bw = wrap.clientWidth, bh = wrap.clientHeight;
-  const zs = $('zoom').value;
-  S.zoom = zs === 'fit' ? Math.min(bw / 1920, bh / 720) : Number(zs);
+  S.zoom = S.zoomMode === 'fit' ? Math.min(bw / 1920, bh / 720) : S.zoomMode;
+  syncZoomUI();
   stage.style.width = '1920px'; stage.style.height = '720px';
   stage.style.transform = 'scale(' + S.zoom + ')';
   const ox = Math.max(0, (bw - 1920 * S.zoom) / 2), oy = Math.max(0, (bh - 720 * S.zoom) / 2);
@@ -370,6 +375,9 @@ window.addEventListener('keydown', (e) => {
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { undo(); e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { save(); e.preventDefault(); return; }
+  if (e.key === '+' || e.key === '=') { zoomStep(1); e.preventDefault(); return; }
+  if (e.key === '-' || e.key === '_') { zoomStep(-1); e.preventDefault(); return; }
+  if (e.key === '0') { S.zoomMode = 'fit'; render(); e.preventDefault(); return; }
   const w = S.doc.widgets.find((q) => q.id === S.sel);
   if (!w) return;
   const step = e.shiftKey ? 10 : 1;
@@ -447,7 +455,35 @@ $('save').onclick = save;
 $('undo').onclick = undo;
 $('revert').onclick = () => { if (!S.dirty || confirm('Discard unsaved changes?')) load(S.name); };
 $('which').onchange = (e) => { if (!S.dirty || confirm('Discard unsaved changes?')) load(e.target.value); };
-$('zoom').onchange = render;
+$('zoom').onchange = (e) => {
+  S.zoomMode = e.target.value === 'fit' ? 'fit' : Number(e.target.value);
+  render();
+};
+// Zoom walks a preset ladder; Ctrl+wheel over the stage and Ctrl +/- do the same. The select switches to
+// "—" when a step lands between presets (only reachable through the wheel).
+const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2];
+function zoomNow() { return S.zoomMode === 'fit' ? S.zoom : S.zoomMode; }
+function syncZoomUI() {
+  const sel = $('zoom');
+  const v = S.zoomMode === 'fit' ? 'fit' : String(S.zoomMode);
+  sel.value = Array.from(sel.options).some((o) => o.value === v) ? v : 'custom';
+  $('zoomout').disabled = S.zoomMode !== 'fit' && zoomNow() <= ZOOMS[0] + 1e-6;
+  $('zoomin').disabled = S.zoomMode !== 'fit' && zoomNow() >= ZOOMS[ZOOMS.length - 1] - 1e-6;
+}
+function zoomStep(dir) {
+  const cur = zoomNow();
+  const up = ZOOMS.find((z) => z > cur + 1e-6) || ZOOMS[ZOOMS.length - 1];
+  const down = ZOOMS.slice().reverse().find((z) => z < cur - 1e-6) || ZOOMS[0];
+  S.zoomMode = dir > 0 ? up : down;
+  render();
+}
+$('zoomin').onclick = () => zoomStep(1);
+$('zoomout').onclick = () => zoomStep(-1);
+$('stagewrap').addEventListener('wheel', (e) => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  zoomStep(e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
 $('boxhide').onchange = render;
 $('livebox').onchange = (e) => {
   const wrap = $('stagewrap');
