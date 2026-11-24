@@ -88,6 +88,8 @@
     <b>Layout editor</b>
     <select id="which"></select>
     <button id="revert" title="reload from disk">Revert</button>
+    <button id="dup" title="copy this theme under a new name">Duplicate</button>
+    <button id="del" title="delete this bench copy (shipped themes cannot be deleted)">Delete</button>
     <span class="grow"></span>
     <label><input type="checkbox" id="livebox"> live</label>
     <label title="hide widget outlines"><input type="checkbox" id="boxhide"> clean</label>
@@ -575,6 +577,28 @@ async function save(quiet) {
 $('save').onclick = save;
 $('undo').onclick = undo;
 $('revert').onclick = () => { if (!S.dirty || confirm('Discard unsaved changes?')) load(S.name); };
+$('dup').onclick = async () => {
+  const nm = prompt('name for the copy', S.name + '-copy');
+  if (!nm) return;
+  if (!/^[a-z0-9_-]+$/i.test(nm)) { say('names use letters, digits, - and _', 'err'); return; }
+  const d = JSON.parse(JSON.stringify(S.doc));
+  d.name = nm;
+  try {
+    const r = await api('/layout', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ name: nm, data: d }) });
+    say('copied to ' + r.name + ' · ' + r.widgets + ' widgets', 'ok');
+    location.hash = nm;                   // boot reads the hash, so the copy loads and the app switches to it
+    location.reload();
+  } catch (err) { say(err.message, 'err'); }
+};
+$('del').onclick = async () => {
+  if (!confirm('Delete the bench copy of "' + S.name + '"?\nA shipped theme stays in the app.')) return;
+  try {
+    await api('/layout/delete', { method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ name: S.name }) });
+    location.hash = ''; location.reload();
+  } catch (err) { say(err.message, 'err'); }
+};
 $('which').onchange = (e) => { if (!S.dirty || confirm('Discard unsaved changes?')) load(e.target.value); };
 $('zoom').onchange = (e) => {
   S.zoomMode = e.target.value === 'fit' ? 'fit' : Number(e.target.value);

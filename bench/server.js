@@ -906,6 +906,25 @@ function renderDoc(md) {
         res.writeHead(200, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ name: name, widgets: (b.data.widgets || []).length, file: override }));
     }
+    if (req.method === 'POST' && url === '/layout/delete') {
+        // Deletes the bench override only. A shipped layout stays in the app, so "delete" on one of those would
+        // silently fall back to the original — refuse instead, and let the editor say why.
+        const b = await body(req);
+        const name = String(b.name || '');
+        if (!/^[a-z0-9_-]+$/i.test(name)) { res.writeHead(400); return res.end('bad layout name'); }
+        const override = path.join(DATA_DIR, 'layouts', name + '.json');
+        const built = path.join(APP_DIR, 'hud', 'layouts', name + '.json');
+        if (!fs.existsSync(override)) {
+            res.writeHead(fs.existsSync(built) ? 409 : 404, { 'content-type': 'application/json' });
+            return res.end(JSON.stringify({ error: fs.existsSync(built)
+                ? 'that is a shipped theme — delete only removes bench copies'
+                : 'no such theme' }));
+        }
+        fs.unlinkSync(override);
+        log('warn', 'bench: deleted theme override ' + path.basename(override));
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ name: name, deleted: true, shipped: fs.existsSync(built) }));
+    }
     res.writeHead(404); res.end();
 });
 
