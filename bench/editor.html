@@ -33,11 +33,12 @@
   .row.hidden { opacity:.45; }
   #stagewrap { position:relative; overflow:hidden; background:#07090c; }
   #live { position:absolute; left:0; top:0; width:1920px; height:720px; border:0; transform-origin:0 0;
-    pointer-events:none; opacity:0; transition:opacity .15s; }
+    pointer-events:none; opacity:.62; transition:opacity .15s; }
   #stagewrap.live #live { opacity:1; }
+  #stagewrap.live .wg { border-color:rgba(90,140,200,.14); background:transparent; }
   #stage { position:absolute; left:0; top:0; transform-origin:0 0; }
   #stagewrap.live #stage { background:transparent; }
-  .wg { position:absolute; border:1px solid rgba(90,140,200,.35); background:rgba(30,60,110,.10);
+  .wg { position:absolute; border:1px solid rgba(120,170,235,.42); background:rgba(30,60,110,.05);
     overflow:hidden; cursor:move; }
   #stagewrap.live .wg { border-color:rgba(90,140,200,.14); background:transparent; }
   .wg .tag { position:absolute; left:0; top:0; padding:0 3px; font-size:9px; color:#9dc2ff;
@@ -388,6 +389,7 @@ async function save(quiet) {
     if (!quiet) S.undo = [];
     $('save').disabled = true;
     say('saved ' + r.widgets + ' widgets · the app reloads on its own', 'ok');
+    if (!$('livebox').checked) setTimeout(mountPlate, 700);   // refresh the plate after the app reloads
   } catch (e) {
     say(e.message, 'err');
   }
@@ -400,17 +402,18 @@ $('zoom').onchange = render;
 $('boxhide').onchange = render;
 $('livebox').onchange = (e) => {
   const wrap = $('stagewrap');
-  if (e.target.checked) {
-    $('live').src = '/?only=1&clean=1';
-    wrap.classList.add('live');
-    $('boxhide').checked = true;
-    render();
-  } else { wrap.classList.remove('live'); $('live').src = 'about:blank'; }
+  wrap.classList.toggle('live', e.target.checked);
+  if (e.target.checked) $('boxhide').checked = true;
+  render();
 };
+// The cluster is always the stage's backing plate: with `live` off it shows the last *saved* layout, so the
+// boxes sit on something and unsaved edits are visible as a difference against it.
+function mountPlate() { $('live').src = '/?only=1&clean=1&t=' + Date.now(); }
 window.addEventListener('resize', () => render());
 window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 boot().then(() => {
+  mountPlate();
   // deep link: /editor#<layout> or /editor#<widget id>, so a screenshot or a bug report can point at one widget
   let h = decodeURIComponent((location.hash || '').slice(1));
   if (!h) return;
