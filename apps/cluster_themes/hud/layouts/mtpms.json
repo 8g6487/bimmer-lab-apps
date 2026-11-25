@@ -180,8 +180,9 @@
    "wBot": 52,
    "wTop": 17,
    "wBend": 44,
-   "max": 7000,
-   "toggle": "!mapUp"
+   "max": 8000,
+   "toggle": "!mapUp",
+   "rpmMax": 7000
   },
   {
    "id": "tach_left_map",
@@ -202,8 +203,9 @@
    "wBot": 52,
    "wTop": 17,
    "wBend": 44,
-   "max": 7000,
-   "toggle": "mapUp"
+   "max": 8000,
+   "toggle": "mapUp",
+   "rpmMax": 7000
   },
   {
    "id": "tach_right",
@@ -224,8 +226,9 @@
    "wBot": 52,
    "wTop": 17,
    "wBend": 44,
-   "max": 7000,
-   "toggle": "!mapUp"
+   "max": 8000,
+   "toggle": "!mapUp",
+   "rpmMax": 7000
   },
   {
    "id": "tach_right_map",
@@ -246,8 +249,9 @@
    "wBot": 52,
    "wTop": 17,
    "wBend": 44,
-   "max": 7000,
-   "toggle": "mapUp"
+   "max": 8000,
+   "toggle": "mapUp",
+   "rpmMax": 7000
   },
   {
    "id": "nl0",
