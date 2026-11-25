@@ -317,6 +317,7 @@ function inspector() {
       changed(before);
     };
     f.appendChild(inp);
+    if (kind === 'font') f.appendChild(fontSizeRow(w, key));
     sec.appendChild(f);
   };
 
@@ -351,6 +352,35 @@ function inspector() {
     S.sel = null; changed(before);
   };
   box.appendChild(del);
+}
+// Face and size are one atlas key, so a size that was never baked does not exist yet: the select can only
+// list the shipped ladder. This row bakes <stem>_<px> on demand and points the widget at it, which is the
+// only way to land an odd size without leaving the editor.
+function fontSizeRow(w, key) {
+  const row = el('div', 'f');
+  row.appendChild(el('label', null, 'size'));
+  const px = el('input'); px.type = 'number'; px.step = '1'; px.min = '12'; px.max = '160';
+  const cur = (S.schema.fonts || []).find((f2) => f2.name === w[key]) || {};
+  px.value = cur.size || 36;
+  const stem = cur.stem || 'font';
+  const btn = el('button', null, 'Bake');
+  btn.title = 'Bake ' + stem + ' at the size on the left, then use it on this widget';
+  btn.onclick = async () => {
+    const before = JSON.stringify(S.doc);
+    say('baking ' + stem + '_' + px.value + '…');
+    try {
+      const r = await api('/bake', { method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ family: stem, size: Number(px.value) }) });
+      const g = await api('/fonts');
+      S.schema.fonts = g.fonts || S.schema.fonts;
+      const c = S.doc.widgets.find((q) => q.id === w.id) || w;
+      c[key] = r.font;
+      say(r.font + ' ready');
+      changed(before);
+    } catch (e) { say(e.message, 'err'); }
+  };
+  row.appendChild(px); row.appendChild(btn);
+  return row;
 }
 function rerval(inp, v) {
   // A <select> only accepts the bare string: JSON.stringify would leave it with "m_num" (quotes), no
