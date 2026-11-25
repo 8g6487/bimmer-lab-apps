@@ -23,6 +23,11 @@
  * - Flags protocol mistakes (bad sizes, unknown refs, ops before hello) in
  *   the log instead of silently drawing something.
  *
+ * - BENCH_HOST_LAYERS=1: the hello says host_layers 1 and the bench takes "host" with "into" and "unhost" (PROTOCOL.md
+ *   "Hosting from layers", cluster-render 0.8.2): a host is live while a layer of its connection is drawn over its rect,
+ *   and the bench sends the "hosting" and "host" events. With WAZE_STATUS set it writes "hosted" (1 or 0) next to that
+ *   status file, so bench/fake-waze.js says "hosted": 1 like waze-on-cluster 0.14.5 does. The page doesn't draw the map.
+ *
  * Bench only, never shipped to the car. No dependencies beyond Node.
  * The app runs on Node 8.16.2 (the car's version) from .cache/node8 when it's
  * there; BENCH_NODE=/path/to/node overrides.
@@ -98,6 +103,42 @@ function log(level, text) {
 
 const layers = new Map();   // key "conn:ref" -> layer
 let nextConn = 1;
+// hosting from layers (BENCH_HOST_LAYERS=1): the map's host { conn, sock, app, m, state, reason }, one at most
+const HOST_LAYERS = process.env.BENCH_HOST_LAYERS === '1';
+const renderSocks = new Map();   // conn -> socket, for the "host" event every client gets
+let mapHost = null;
+const HOSTED_FILE = process.env.WAZE_STATUS ? path.join(path.dirname(process.env.WAZE_STATUS), 'hosted') : null;
+function hostEval() {
+    const h = mapHost;
+    let state = 'waiting', reason = '';
+    if (h) {
+        const m = h.m;
+        const over = Array.from(layers.values()).some((l) => l.conn === h.conn && l.kind !== 'asset' && l.target === m.into && l.visible &&
+            l.state === 'shown' && l.x < m.x + m.w && l.x + l.w > m.x && l.y < m.y + m.h && l.y + l.h > m.y);
+        if (over) state = 'live'; else reason = 'no layer of the client is drawn over its rect on ' + m.into;
+        if (state !== h.state || reason !== h.reason) {
+            const wasLive = h.state === 'live';
+            h.state = state; h.reason = reason;
+            log('info', 'renderer: ' + h.app + '\'s host of map is ' + state + (reason ? ' (' + reason + ')' : ''));
+            writeEv(h.sock, { ev: 'hosting', target: 'map', into: m.into, state, reason, by: '' });
+            if (wasLive !== (state === 'live')) hostBroadcast(state === 'live' ? m : null);
+        }
+    }
+}
+function hostBroadcast(m) {
+    const ev = m ? { ev: 'host', target: 'map', into: m.into, shown: 1, x: m.x, y: m.y, w: m.w, h: m.h, src_x: m.src_x, src_y: m.src_y, src_w: m.src_w, src_h: m.src_h }
+        : { ev: 'host', target: 'map', into: '', shown: 0, x: 0, y: 0, w: 0, h: 0, src_x: 0, src_y: 0, src_w: 0, src_h: 0 };
+    renderSocks.forEach((s) => writeEv(s, ev));
+    if (HOSTED_FILE) { try { fs.writeFileSync(HOSTED_FILE, m ? '1' : '0'); } catch (e) { /* no folder */ } }
+    log('info', 'renderer: map ' + (m ? 'hosted on ' + m.into + ' at ' + m.x + ',' + m.y + ' ' + m.w + 'x' + m.h + (m.src_w ? ', the map\'s ' + m.src_w + 'x' + m.src_h + ' at ' + m.src_x + ',' + m.src_y : '') : 'on its own slot'));
+}
+function hostEnd(why) {
+    if (!mapHost) return;
+    const live = mapHost.state === 'live';
+    log('info', 'renderer: ' + mapHost.app + '\'s host of map ended (' + why + ')');
+    mapHost = null;
+    if (live) hostBroadcast(null);
+}
 
 /** The visibility warnings for one layer's rect on its target (the same check layouts.js runs per widget). */
 function layerWarnings(l) {
@@ -120,6 +161,7 @@ function helloMsg() {
 }
 let sceneTimer = null;
 function sceneChanged() {
+    if (mapHost) setImmediate(hostEval);
     if (sceneTimer) return;
     sceneTimer = setTimeout(() => { sceneTimer = null; send({ t: 'scene', layers: sceneMeta(), pixels: pixelBytes() }); }, 16);
 }
@@ -167,6 +209,7 @@ function writeEv(sock, obj) {
 const renderServer = net.createServer((sock) => {
     const conn = nextConn++;
     const st = { conn, app: '?', hello: false, buf: Buffer.alloc(0) };
+    renderSocks.set(conn, sock);
     const bad = (why) => { log('error', 'protocol [' + st.app + ']: ' + why); };
     const refuse = (op, ref, reason) => { bad(op + ' ref ' + ref + ': ' + reason); writeEv(sock, { ev: 'error', op, ref, reason }); };
 
@@ -189,6 +232,8 @@ const renderServer = net.createServer((sock) => {
         let n = 0;
         layers.forEach((l, k) => { if (l.conn === conn) { layers.delete(k); n++; } });
         log('info', 'renderer: ' + st.app + ' disconnected, dropped its ' + n + ' layer(s)');
+        renderSocks.delete(conn);
+        if (mapHost && mapHost.conn === conn) hostEnd('client gone');
         sceneChanged();
     });
 
@@ -208,7 +253,7 @@ const renderServer = net.createServer((sock) => {
             st.app = m.app || '?';
             if (m.proto !== 1) bad('hello proto ' + m.proto + ', service speaks 1');
             log('info', 'renderer: hello from ' + st.app + ' (proto ' + m.proto + ')');
-            writeEv(sock, { ev: 'hello', backend: 'bench', targets: Object.keys(TARGETS).join(',') });
+            writeEv(sock, Object.assign({ ev: 'hello', backend: 'bench', targets: Object.keys(TARGETS).join(',') }, HOST_LAYERS ? { host_layers: 1 } : {}));
             return;
         }
         if (!st.hello) return bad(m.op + ' before hello');
@@ -337,6 +382,28 @@ const renderServer = net.createServer((sock) => {
                 const conns = new Set(Array.from(layers.values()).map((l) => l.conn)).size;
                 const assets = layers.size - layerCount();
                 writeEv(sock, { ev: 'status', text: 'bench: ' + layerCount() + ' layers' + (assets ? ' and ' + assets + ' asset' + (assets > 1 ? 's' : '') : '') + ' on ' + conns + ' connection(s), layer cap ' + (layerCap || 'off') + ', ' + overCap() + ' over it, pixel memory ' + mib(pixelBytes()) + ' of ' + (PIXEL_BYTES ? mib(PIXEL_BYTES) : 'unlimited') });
+                return;
+            case 'host': {
+                // PROTOCOL.md "Hosting from layers": only "into" (no scene files on the bench), the map only
+                if (!HOST_LAYERS || !m.into) return writeEv(sock, { ev: 'error', op: 'host', ref: m.ref || 0, reason: 'no such scene', target: m.target });
+                const fail = (why) => { bad('host: ' + why); writeEv(sock, { ev: 'error', op: 'host', ref: 0, reason: why, target: m.target, into: m.into }); if (mapHost && mapHost.conn === conn) hostEnd('refused'); };
+                if (!TARGETS[m.into] || m.target !== 'map') return fail('bench: hosts only "map" into a known target');
+                if (m.ref !== undefined) return fail('both ref and into');
+                if (!(m.w >= 64 && m.h >= 32) || (m.src_w !== undefined && !(m.src_w >= 64 && m.src_h >= 32))) return fail('smaller than 64x32');
+                const [tw, th] = TARGETS[m.into], [mw, mh] = TARGETS.map;
+                if (m.x < 0 || m.y < 0 || m.x + m.w > tw || m.y + m.h > th) return fail('the rect is not inside ' + m.into);
+                if (m.src_w !== undefined && (m.src_x < 0 || m.src_y < 0 || m.src_x + m.src_w > mw || m.src_y + m.src_h > mh)) return fail('the part is not inside map');
+                if (mapHost && mapHost.conn !== conn) log('warn', 'renderer: a second app hosts map; the bench keeps only the newest');
+                const prev = mapHost && mapHost.conn === conn && mapHost.state === 'live';
+                mapHost = { conn, sock, app: st.app, m, state: null, reason: null };
+                log('info', 'renderer: host from ' + st.app + ': map into ' + m.into + ' at ' + m.x + ',' + m.y + ' ' + m.w + 'x' + m.h);
+                hostEval();
+                if (prev && mapHost.state === 'live') hostBroadcast(m);   // moved: tell everyone the new rect
+                return;
+            }
+            case 'unhost':
+                if (!HOST_LAYERS) return bad('unhost to a service without host_layers');
+                if (mapHost && mapHost.conn === conn && m.target === 'map') hostEnd('unhost');
                 return;
             default:
                 bad('op "' + m.op + '" not handled by the bench');

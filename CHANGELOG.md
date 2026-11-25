@@ -2,6 +2,10 @@
 
 Newest first. Dates are when the build was pushed.
 
+## Nov 24 2026
+
+- **Cluster Themes 0.19.10, HUD Widgets 0.15.9:** "Show Waze map inside the theme" works again. Waze on Cluster 0.10.10 and newer stopped taking the way the theme used to move its map, so no theme showed the map and the Map tab stayed on "Moving the map into the theme". The theme now asks cluster-render to show the map in its window, a way robertnisipeanu added after we asked (robertnisipeanu/idrive-apps#250). It needs Waze on Cluster 0.14.5 or newer and cluster-render 0.8.2 or newer. GT3, Sport, M, M view and Vector show the same part of the map as before. The holiday lights show again when a badge is set (on some themes they found no room). M view's top line now runs into its corner in one smooth sweep instead of bending suddenly. Not yet tested on a car.
+
 ## Nov 22 2026
 
 - **Cluster Themes 0.19.9, HUD Widgets 0.15.8:** M view's scale lines are now perfectly round curves (before, they bent in small corners you could see on the car). The holiday lights were redone on every theme: they never cross a theme's own lines, hang the same on both sides, and leave out the short pieces that looked broken. On M view they hang between the two dials under the M stripes, and on Vector they no longer run into the rev counter or the music panel. Not yet tested on a car.
