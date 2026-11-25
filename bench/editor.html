@@ -308,9 +308,12 @@ function inspector() {
       else v = inp.value === '' ? undefined : Number(inp.value);
       // A rebuilt field can fire "change" while carrying the value it already had. Without this guard that
       // marks the doc dirty, queueSave() posts the layout, the app reloads and re-renders — a save loop.
-      if (JSON.stringify(v) === JSON.stringify(val) && (v !== undefined || !(key in w))) { rerval(inp, val); return; }
-      if (v === undefined) delete w[key]; else w[key] = v;
-      if (key === 'id') S.sel = w.id;
+      // Write through the id, not the captured object: render() swaps S.doc.widgets for freshly parsed
+      // ones on every load, so a field built before that would otherwise save into an orphan and lose the edit.
+      const cur = S.doc.widgets.find((q) => q.id === w.id) || w;
+      if (JSON.stringify(v) === JSON.stringify(cur[key]) && (v !== undefined || !(key in cur))) { rerval(inp, cur[key]); return; }
+      if (v === undefined) delete cur[key]; else cur[key] = v;
+      if (key === 'id') S.sel = cur.id;
       changed(before);
     };
     f.appendChild(inp);
@@ -349,7 +352,12 @@ function inspector() {
   };
   box.appendChild(del);
 }
-function rerval(inp, v) { inp.value = JSON.stringify(v); }
+function rerval(inp, v) {
+  // A <select> only accepts the bare string: JSON.stringify would leave it with "m_num" (quotes), no
+  // matching option, value "" — and Chrome then fires a second "change" on blur that writes the empty
+  // string back into the widget.
+  inp.value = v === undefined || v === null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+}
 
 function changed(before) {
   S.undo.push(before);
