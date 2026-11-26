@@ -701,12 +701,18 @@ class Page {
     drawPicker(cv, bottom) {
         const p = this.picker, s = this.item(p.key), opts = s.type === 'number' ? (s.steps || []).map((v) => [v, null]) : s.options || [];
         cv.fillRect(0, 36, W, bottom + 20, '#000000b0');
-        const w = 620, rh = 58, h = 76 + opts.length * rh, x = (W - w) / 2, y = Math.max(52, (bottom + 44 - h) / 2);
+        const w = 620, rh = 58;
+        // A long list must stay reachable: show only what fits and page through the rest.
+        const per = Math.max(3, Math.min(9, Math.floor((bottom - 176) / rh)));
+        const pages = Math.max(1, Math.ceil(opts.length / per));
+        const pg = Math.min(Math.max(0, p.page | 0), pages - 1);
+        const rows = Math.min(per, opts.length - pg * per), foot = pages > 1 ? 46 : 0;
+        const h = 76 + rows * rh + foot, x = (W - w) / 2, y = Math.max(52, (bottom + 44 - h) / 2);
         cv.card(x, y, w, h, 18, [[0, '#18233a'], [1, '#0c111b']]);
         cv.strokeRoundRect(x, y, w, h, 18, 1, A(C.blueHi, 0.3));
         cv.text(p.title.toUpperCase(), x + 26, y + 42, 15, C.label, { font: 'bold', spacing: 2.4, literal: true });
         const v = this.get(p.key);
-        opts.forEach((o, i) => {
+        opts.slice(pg * per, pg * per + rows).forEach((o, i) => {
             const ry = y + 60 + i * rh, sel = o[0] === v;
             if (sel) cv.roundRect(x + 12, ry, w - 24, rh - 6, 12, A(C.blue, 0.35));
             const text = p.fmt ? p.fmt(o[0]) : o[1] !== null ? o[1] : fmtInt(o[0]) + ' rpm';
@@ -717,6 +723,17 @@ class Page {
                 if (LOOK_KEYS.indexOf(p.key) >= 0) this.chooseLayout(p.key, o[0]); else this.set(p.key, o[0]);
             }, 'pick:' + p.key + ':' + o[0], 12);
         });
+        if (pages > 1) {
+            const by = y + h - foot + 4, bw = 54, bh = 38, right = x + w - 24;
+            const pager = (bx, glyph, to, k, on) => {
+                cv.roundRect(bx, by, bw, bh, 12, on ? '#ffffff18' : '#ffffff08');
+                cv.text(glyph, bx + bw / 2, by + 26, 18, on ? C.text : C.dim, { align: 'center', font: 'bold', literal: true });
+                if (on) cv.target(bx, by, bw, bh, () => { this.picker.page = to; this.kick(); }, k, 10);
+            };
+            pager(right - bw, '\u25b2', pg - 1, 'page:' + p.key + ':up', pg > 0);
+            pager(right, '\u25bc', pg + 1, 'page:' + p.key + ':dn', pg < pages - 1);
+            cv.text((pg + 1) + ' / ' + pages, right - bw - 16, by + 26, 16, C.dim, { align: 'right', literal: true });
+        }
         cv.target(0, 36, W, bottom, () => { this.picker = null; this.kick(); }, 'pick:close');
     }
 
