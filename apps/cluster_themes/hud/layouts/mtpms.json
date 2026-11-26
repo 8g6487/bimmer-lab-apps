@@ -141,6 +141,7 @@
       ],
       "segSlant": 6,
       "id": "backdrop_map",
+      "toggle": "mapUp",
       "blade": {
         "xm": 378,
         "y0": 566,
