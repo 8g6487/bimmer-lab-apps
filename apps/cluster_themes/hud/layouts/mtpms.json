@@ -90,16 +90,7 @@
         376,
         1181,
         55
-      ],
-      "hole": [
-        880,
-        196,
-        190,
-        46
-      ],
-      "holeWhen": true,
-      "holeRadius": 6,
-      "holeInset": 0
+      ]
     },
     {
       "type": "mdash",
@@ -150,7 +141,6 @@
       ],
       "segSlant": 6,
       "id": "backdrop_map",
-      "toggle": "mapUp",
       "blade": {
         "xm": 378,
         "y0": 566,
