@@ -27,7 +27,7 @@ const TYPES = {
     grid: [],
     gridlabels: ['font'],
     segbar: ['signal', 'max'],
-    mdash: ['?style','?inner','?band','?fillOnly'],
+    mdash: ['?style','?inner','?band','?fillOnly','?hole','?holeWhen','?holeInset','?holeRadius'],
     sdash: ['geo', 'k', 'band', 'ticks', 'fuelSeg', 'oilSeg', 'strip', 'topEnd'],
     mview: ['path', 'scale', 'dial', 'dialAng', 'line'],
     vdash: ['tach', 'segs'],
