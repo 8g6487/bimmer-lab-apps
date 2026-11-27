@@ -85,6 +85,8 @@ def main():
     target = spec.get('config', {}).get('target', 'hud')
     sz = SIZES['panel' if target == 'panel' else 'hud']
     layouts = [o[0] for o in next(s for s in spec['settings'] if s['key'] == 'hudLayout')['options'] if o[0] not in SKIP]
+    if len(sys.argv) > 3:            # a subset: python tools/previews.py cluster_themes 8078 mtpms
+        layouts = [x for x in layouts if x in sys.argv[3:]]
     data = os.path.join(ROOT, 'bench', '.data', app, 'settings.json')
     saved = json.load(open(data)) if os.path.exists(data) else {}
     defaults = {s['key']: s.get('default') for s in spec['settings']}
